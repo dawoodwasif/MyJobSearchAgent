@@ -1,6 +1,6 @@
-# Backend API for Document Processing
+# Node.js Backend API for Document Processing
 
-This Python Flask backend handles document text extraction and AI-powered resume optimization.
+This Node.js Express backend handles document text extraction and AI-powered resume optimization.
 
 ## Features
 
@@ -8,23 +8,25 @@ This Python Flask backend handles document text extraction and AI-powered resume
 - Parse resume content into structured JSON
 - Generate AI-optimized resumes and cover letters
 - Provide downloadable optimized documents
+- CORS support for frontend integration
+- File upload handling with security
 
 ## Setup
 
-1. **Install Python dependencies:**
+1. **Install Node.js dependencies:**
    ```bash
    cd backend
-   pip install -r requirements.txt
+   npm install
    ```
 
 2. **Run the server:**
    ```bash
-   python app.py
+   npm start
    ```
    
-   Or use the helper script:
+   Or for development:
    ```bash
-   python run.py
+   npm run dev
    ```
 
 3. **Server will start on:** `http://localhost:5000`
@@ -50,13 +52,21 @@ This Python Flask backend handles document text extraction and AI-powered resume
 - **GET** `/api/download/cover-letter/<file_id>`
 - Downloads optimized cover letter file
 
+## Dependencies
+
+- **express**: Web framework
+- **cors**: Cross-origin resource sharing
+- **multer**: File upload handling
+- **pdf-parse**: PDF text extraction
+- **mammoth**: DOCX text extraction
+- **uuid**: Unique ID generation
+
 ## File Structure
 
 ```
 backend/
-├── app.py              # Main Flask application
-├── requirements.txt    # Python dependencies
-├── run.py             # Helper script to run server
+├── server.js          # Main Express application
+├── package.json       # Node.js dependencies
 ├── uploads/           # Temporary file uploads (auto-created)
 ├── generated/         # Generated documents (auto-created)
 └── README.md          # This file
@@ -65,12 +75,21 @@ backend/
 ## Development
 
 The backend includes:
-- CORS support for frontend integration
-- File upload handling with security
-- Text extraction from PDF/DOCX
+- Express.js server with CORS support
+- Multer for secure file upload handling
+- PDF and DOCX text extraction
 - Mock AI optimization (replace with actual AI logic)
+- Automatic file cleanup
+- Comprehensive error handling
+- File size and type validation
+
+## Security Features
+
+- File type validation (PDF, DOC, DOCX only)
+- File size limits (10MB max)
+- Secure filename handling
 - Temporary file cleanup
-- Error handling and logging
+- Input validation
 
 ## Next Steps
 
@@ -79,3 +98,5 @@ The backend includes:
 3. Implement more sophisticated resume parsing
 4. Add support for more file formats
 5. Integrate with external AI services (OpenAI, etc.)
+6. Add logging and monitoring
+7. Implement caching for better performance
