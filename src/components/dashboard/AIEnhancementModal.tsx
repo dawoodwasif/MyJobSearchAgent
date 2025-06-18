@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, Sparkles, Cloud, HardDrive, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Upload, FileText, Sparkles, Cloud, HardDrive } from 'lucide-react';
 import OptimizationResults from './OptimizationResults';
-import { DocumentProcessingService } from '../../services/documentProcessingService';
 
 interface AIEnhancementModalProps {
   jobDescription: string;
@@ -21,25 +20,24 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
   const [error, setError] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
-  const [backendStatus, setBackendStatus] = useState<'checking' | 'available' | 'unavailable'>('checking');
-
-  // Check backend status on component mount
-  React.useEffect(() => {
-    checkBackendStatus();
-  }, []);
-
-  const checkBackendStatus = async () => {
-    setBackendStatus('checking');
-    const isAvailable = await DocumentProcessingService.checkBackendHealth();
-    setBackendStatus(isAvailable ? 'available' : 'unavailable');
-  };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      const validation = DocumentProcessingService.validateFile(file);
-      if (!validation.isValid) {
-        setError(validation.error || 'Invalid file');
+      // Validate file type
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        setError('Please select a PDF or Word document');
+        return;
+      }
+      
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        setError('File size must be less than 10MB');
         return;
       }
       
@@ -66,44 +64,79 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       return;
     }
 
-    if (backendStatus !== 'available') {
-      setError('Backend service is not available. Please ensure the Python backend is running.');
-      return;
-    }
-
     setLoading(true);
     setError('');
 
     try {
-      let fileToProcess = selectedFile;
+      // Simulate AI processing
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // Generate mock URLs for the enhanced documents
+      const timestamp = Date.now();
+      const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${timestamp}.pdf`;
+      const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${timestamp}.pdf`;
+      
+      // Generate mock optimization results
+      const mockResults = {
+        matchScore: 85,
+        summary: "Your resume shows strong alignment with this position, with excellent technical skills and relevant experience. The AI optimization has enhanced keyword density and improved content structure for better ATS compatibility.",
+        strengths: [
+          "Strong technical background in required technologies",
+          "Relevant industry experience with measurable achievements",
+          "Good educational background aligned with job requirements",
+          "Demonstrated leadership and project management skills"
+        ],
+        gaps: [
+          "Missing some specific certifications mentioned in job posting",
+          "Could emphasize cloud computing experience more prominently",
+          "Limited mention of agile methodology experience"
+        ],
+        suggestions: [
+          "Add specific metrics to quantify your achievements",
+          "Include more industry-specific keywords throughout the resume",
+          "Highlight collaborative projects and team leadership examples",
+          "Consider adding a professional summary section"
+        ],
+        optimizedResumeUrl: enhancedResumeUrl,
+        optimizedCoverLetterUrl: enhancedCoverLetterUrl,
+        keywordAnalysis: {
+          coverageScore: 78,
+          coveredKeywords: ["JavaScript", "React", "Node.js", "AWS", "Git", "Agile", "Team Leadership"],
+          missingKeywords: ["Docker", "Kubernetes", "CI/CD", "Microservices"]
+        },
+        experienceOptimization: [
+          {
+            company: "Tech Solutions Inc",
+            position: "Senior Developer",
+            relevanceScore: 92,
+            included: true
+          },
+          {
+            company: "StartupXYZ",
+            position: "Full Stack Developer",
+            relevanceScore: 85,
+            included: true
+          },
+          {
+            company: "Local Restaurant",
+            position: "Server",
+            relevanceScore: 15,
+            included: false,
+            reasoning: "Not relevant to software development position"
+          }
+        ],
+        skillsOptimization: {
+          technicalSkills: ["JavaScript", "React", "Node.js", "Python", "AWS", "MongoDB"],
+          softSkills: ["Team Leadership", "Problem Solving", "Communication", "Project Management"],
+          missingSkills: ["Docker", "Kubernetes", "GraphQL", "TypeScript"]
+        }
+      };
 
-      // If cloud URL is provided, we need to fetch the file first
-      if (cloudFileUrl && !selectedFile) {
-        setError('Cloud file processing is not yet implemented. Please upload a local file.');
-        setLoading(false);
-        return;
-      }
-
-      if (!fileToProcess) {
-        throw new Error('No file to process');
-      }
-
-      // Call the backend API
-      const response = await DocumentProcessingService.extractAndOptimize(
-        fileToProcess,
-        jobDescription
-      );
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to process document');
-      }
-
-      // Set the optimization results
-      setOptimizationResults(response.analysis);
+      setOptimizationResults(mockResults);
       setShowResults(true);
       
     } catch (err: any) {
-      setError(err.message || 'Failed to generate AI-enhanced documents. Please try again.');
+      setError('Failed to generate AI-enhanced documents. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -148,48 +181,6 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         </div>
 
         <div className="p-6 space-y-6">
-          {/* Backend Status Indicator */}
-          <div className={`p-3 rounded-lg border ${
-            backendStatus === 'available' 
-              ? 'bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-700'
-              : backendStatus === 'unavailable'
-              ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700'
-              : 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700'
-          }`}>
-            <div className="flex items-center gap-2">
-              {backendStatus === 'available' && <CheckCircle className="text-green-600 dark:text-green-400" size={16} />}
-              {backendStatus === 'unavailable' && <AlertTriangle className="text-red-600 dark:text-red-400" size={16} />}
-              {backendStatus === 'checking' && <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>}
-              
-              <span className={`text-sm font-medium ${
-                backendStatus === 'available' 
-                  ? 'text-green-700 dark:text-green-400'
-                  : backendStatus === 'unavailable'
-                  ? 'text-red-700 dark:text-red-400'
-                  : 'text-yellow-700 dark:text-yellow-400'
-              }`}>
-                {backendStatus === 'available' && 'Backend service is running'}
-                {backendStatus === 'unavailable' && 'Backend service is not available'}
-                {backendStatus === 'checking' && 'Checking backend status...'}
-              </span>
-              
-              {backendStatus === 'unavailable' && (
-                <button
-                  onClick={checkBackendStatus}
-                  className="ml-auto text-xs bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-400 px-2 py-1 rounded hover:bg-red-200 dark:hover:bg-red-900/70 transition-colors"
-                >
-                  Retry
-                </button>
-              )}
-            </div>
-            
-            {backendStatus === 'unavailable' && (
-              <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                Please start the Python backend server: <code className="bg-red-100 dark:bg-red-900/50 px-1 rounded">cd backend && python app.py</code>
-              </p>
-            )}
-          </div>
-
           {error && (
             <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
               {error}
@@ -325,9 +316,6 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     Make sure the file is publicly accessible or shared with appropriate permissions
                   </p>
-                  <p className="mt-1 text-sm text-yellow-600 dark:text-yellow-400">
-                    Note: Cloud file processing is not yet implemented. Please upload a local file.
-                  </p>
                 </div>
               )}
             </div>
@@ -338,13 +326,13 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
             <button
               type="button"
               onClick={handleGenerateAI}
-              disabled={loading || (!selectedFile && !cloudFileUrl) || !jobDescription.trim() || backendStatus !== 'available'}
+              disabled={loading || (!selectedFile && !cloudFileUrl) || !jobDescription.trim()}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Processing Document...
+                  Generating AI Enhanced Documents...
                 </>
               ) : (
                 <>
