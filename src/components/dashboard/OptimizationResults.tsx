@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Download, FileText, CheckCircle, AlertCircle, Target, TrendingUp, Award, Brain } from 'lucide-react';
+import { DocumentProcessingService } from '../../services/documentProcessingService';
 import ResumeTemplateForm from './ResumeTemplateForm';
 
 interface OptimizationResultsProps {
@@ -28,13 +29,14 @@ interface OptimizationResultsProps {
       softSkills: string[];
       missingSkills: string[];
     };
-    parsedResume?: any; // Add parsed resume data
+    parsedResume?: any;
   };
   onClose: () => void;
 }
 
 const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onClose }) => {
   const [showTemplateForm, setShowTemplateForm] = React.useState(false);
+  const [downloading, setDownloading] = React.useState<'resume' | 'cover-letter' | null>(null);
 
   const getScoreBadge = (score: number) => {
     if (score >= 85) {
@@ -70,61 +72,30 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
 
   const scoreBadge = getScoreBadge(results.matchScore);
 
-  const handleContinueToApplication = () => {
-    // Mock parsed resume data - in real implementation, this would come from the backend
-    const mockParsedResume = {
-      personal: {
-        name: "John Doe",
-        email: "john.doe@email.com",
-        phone: "+1 (555) 123-4567",
-        location: "San Francisco, CA",
-        linkedin: "https://linkedin.com/in/johndoe",
-        website: "https://johndoe.dev"
-      },
-      education: [
-        {
-          school: "University of California, Berkeley",
-          degree: "Bachelor of Science",
-          field: "Computer Science",
-          gpa: "3.8",
-          start_date: "2018-08",
-          end_date: "2022-05",
-          location: "Berkeley, CA"
-        }
-      ],
-      experience: [
-        {
-          company: "Tech Solutions Inc",
-          position: "Senior Software Developer",
-          start_date: "2022-06",
-          end_date: "Present",
-          location: "San Francisco, CA",
-          highlights: [
-            "Led development of microservices architecture serving 1M+ users",
-            "Improved application performance by 40% through optimization",
-            "Mentored 3 junior developers and conducted code reviews"
-          ]
-        },
-        {
-          company: "StartupXYZ",
-          position: "Full Stack Developer",
-          start_date: "2021-01",
-          end_date: "2022-05",
-          location: "Remote",
-          highlights: [
-            "Built responsive web applications using React and Node.js",
-            "Implemented CI/CD pipelines reducing deployment time by 60%",
-            "Collaborated with design team to improve user experience"
-          ]
-        }
-      ],
-      skills: ["JavaScript", "React", "Node.js", "Python", "AWS", "MongoDB", "Git", "Docker", "Kubernetes"],
-      projects: [],
-      certifications: [],
-      awards: [],
-      languages: []
-    };
+  const handleDownload = async (type: 'resume' | 'cover-letter') => {
+    setDownloading(type);
+    try {
+      const url = type === 'resume' ? results.optimizedResumeUrl : results.optimizedCoverLetterUrl;
+      const fileId = DocumentProcessingService.extractFileIdFromUrl(url);
+      
+      if (!fileId) {
+        throw new Error('Invalid download URL');
+      }
 
+      if (type === 'resume') {
+        await DocumentProcessingService.downloadResume(fileId);
+      } else {
+        await DocumentProcessingService.downloadCoverLetter(fileId);
+      }
+    } catch (error) {
+      console.error(`Error downloading ${type}:`, error);
+      alert(`Failed to download ${type}. Please try again.`);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const handleContinueToApplication = () => {
     setShowTemplateForm(true);
   };
 
@@ -134,7 +105,6 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
 
   const handleTemplateFormGenerate = (formData: any) => {
     console.log('Generating PDF with data:', formData);
-    // Here you would make the API call to generate the PDF
     setShowTemplateForm(false);
     onClose();
   };
@@ -241,24 +211,40 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
               Your optimized resume and cover letter have been generated and are ready for download.
             </p>
             <div className="flex gap-4 flex-wrap">
-              <a
-                href={results.optimizedResumeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg"
+              <button
+                onClick={() => handleDownload('resume')}
+                disabled={downloading === 'resume'}
+                className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg disabled:cursor-not-allowed"
               >
-                <Download size={20} />
-                Download Optimized Resume
-              </a>
-              <a
-                href={results.optimizedCoverLetterUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg"
+                {downloading === 'resume' ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <Download size={20} />
+                    Download Optimized Resume
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => handleDownload('cover-letter')}
+                disabled={downloading === 'cover-letter'}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg disabled:cursor-not-allowed"
               >
-                <FileText size={20} />
-                Download Cover Letter
-              </a>
+                {downloading === 'cover-letter' ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Downloading...
+                  </>
+                ) : (
+                  <>
+                    <FileText size={20} />
+                    Download Cover Letter
+                  </>
+                )}
+              </button>
             </div>
           </div>
 
