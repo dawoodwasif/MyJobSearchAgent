@@ -1,0 +1,13 @@
+.github/*
+dist/*
+README.md
+src/components/applications/*
+src/components/auth/*
+src/components/forms/*
+src/components/dashboard/*
+src/hooks/*
+src/lib/*
+src/services/*
+src/test/*
+src/types/*
+src/utils/*
