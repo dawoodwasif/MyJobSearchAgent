@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Upload, FileText, Sparkles, Cloud, HardDrive, AlertCircle, CheckCircle, Settings } from 'lucide-react';
 import OptimizationResults from './OptimizationResults';
 import { ResumeExtractionService } from '../../services/resumeExtractionService';
+import { AIEnhancementService } from '../../services/aiEnhancementService';
 
 interface AIEnhancementModalProps {
   jobDescription: string;
@@ -74,21 +75,6 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
     }
   };
 
-  // Safe skill filtering function
-  const filterSkillsByKeywords = (skills: any[], keywords: string[]): string[] => {
-    if (!Array.isArray(skills)) return [];
-    
-    return skills
-      .filter(skill => {
-        // Ensure skill is a string
-        if (typeof skill !== 'string') return false;
-        
-        const skillLower = skill.toLowerCase();
-        return keywords.some(keyword => skillLower.includes(keyword.toLowerCase()));
-      })
-      .slice(0, 8); // Limit to 8 skills
-  };
-
   const handleGenerateAI = async () => {
     if (!selectedFile && !cloudFileUrl) {
       setError('Please select a resume file or provide a cloud file URL');
@@ -103,6 +89,13 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
     // Check API configuration
     if (!config.hasApiKey) {
       setError('OpenAI API key is not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');
+      return;
+    }
+
+    // Validate enhancement request
+    const validation = AIEnhancementService.validateEnhancementRequest(jobDescription);
+    if (!validation.isValid) {
+      setError(validation.error || 'Invalid request');
       return;
     }
 
@@ -123,7 +116,7 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         throw new Error('No file to process');
       }
 
-      // Extract resume data using AI
+      // Step 1: Extract resume data using AI
       setExtractionProgress('Extracting resume data using AI...');
       const extractionResult = await ResumeExtractionService.extractResumeJson(fileToProcess, {
         modelType: config.defaultModelType,
@@ -161,78 +154,137 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         throw new Error('Failed to parse extracted resume data. The resume format may not be compatible.');
       }
 
-      setExtractionProgress('Generating AI optimization analysis...');
+      // Step 2: Enhance resume using AI analysis
+      setExtractionProgress('Analyzing resume against job description...');
+      
+      let enhancementResult;
+      try {
+        // Try using the JSON mode first (more reliable)
+        enhancementResult = await AIEnhancementService.enhanceWithJson(
+          extractionResult.resume_json,
+          jobDescription,
+          {
+            modelType: config.defaultModelType,
+            model: config.defaultModel,
+            fileId: documentId
+          }
+        );
+      } catch (jsonError) {
+        console.warn('JSON enhancement failed, trying file mode:', jsonError);
+        // Fallback to file mode
+        setExtractionProgress('Retrying analysis with file upload...');
+        enhancementResult = await AIEnhancementService.enhanceWithFile(
+          fileToProcess,
+          jobDescription,
+          {
+            modelType: config.defaultModelType,
+            model: config.defaultModel,
+            fileId: documentId
+          }
+        );
+      }
 
-      // Generate mock optimization results with real extracted data
+      if (!enhancementResult.success) {
+        throw new Error(enhancementResult.error || 'Failed to analyze resume. Please try again.');
+      }
+
+      // Normalize the response to ensure all fields exist
+      const normalizedResult = AIEnhancementService.normalizeEnhancementResponse(enhancementResult);
+
+      setExtractionProgress('Generating optimization recommendations...');
+
+      // Generate mock URLs for the enhanced documents
       const timestamp = Date.now();
       const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${documentId}.pdf`;
       const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${documentId}.pdf`;
       
-      // Calculate match score based on extracted data
-      const calculateMatchScore = (resumeData: any, jobDesc: string): number => {
-        const jobKeywords = jobDesc.toLowerCase().split(/\s+/).filter(word => word.length > 3);
-        const resumeText = JSON.stringify(resumeData).toLowerCase();
-        const matchedKeywords = jobKeywords.filter(keyword => resumeText.includes(keyword));
-        return Math.min(95, Math.max(60, Math.round((matchedKeywords.length / jobKeywords.length) * 100)));
-      };
+      // Combine real AI analysis with our UI structure
+      const optimizationResults = {
+        matchScore: normalizedResult.analysis.match_score,
+        summary: normalizedResult.analysis.match_score >= 80 
+          ? `Excellent match! Your resume shows strong alignment with this position (${normalizedResult.analysis.match_score}% match). The AI has identified key strengths and provided targeted recommendations for optimization.`
+          : normalizedResult.analysis.match_score >= 70
+          ? `Good match! Your resume aligns well with this position (${normalizedResult.analysis.match_score}% match). The AI has identified areas for improvement to strengthen your application.`
+          : `Moderate match (${normalizedResult.analysis.match_score}% match). The AI has identified significant opportunities to better align your resume with this position.`,
+        
+        // Use real AI analysis data
+        strengths: normalizedResult.analysis.strengths.length > 0 
+          ? normalizedResult.analysis.strengths 
+          : [
+              `Strong technical background with ${parsedResumeData.experience?.length || 0} work experience entries`,
+              `Comprehensive skill set including relevant technologies`,
+              `Educational background aligns with job requirements`
+            ],
+        
+        gaps: normalizedResult.analysis.gaps.length > 0 
+          ? normalizedResult.analysis.gaps 
+          : [
+              "Some industry-specific keywords could be emphasized more prominently",
+              "Consider adding more quantified achievements with specific metrics"
+            ],
+        
+        suggestions: normalizedResult.analysis.suggestions.length > 0 
+          ? normalizedResult.analysis.suggestions 
+          : [
+              "Incorporate more action verbs and industry-specific terminology",
+              "Add specific metrics and percentages to quantify your achievements",
+              "Consider reorganizing sections to highlight most relevant experience first"
+            ],
 
-      const matchScore = calculateMatchScore(parsedResumeData, jobDescription);
-
-      // Safe skill processing
-      const allSkills = Array.isArray(parsedResumeData.skills) ? parsedResumeData.skills : [];
-      const technicalKeywords = ['javascript', 'react', 'python', 'node', 'sql', 'git', 'aws', 'docker', 'java', 'typescript'];
-      const technicalSkills = filterSkillsByKeywords(allSkills, technicalKeywords);
-
-      const mockResults = {
-        matchScore,
-        summary: `Your resume shows ${matchScore >= 80 ? 'excellent' : matchScore >= 70 ? 'good' : 'moderate'} alignment with this position. The AI has extracted ${extractionResult.extracted_text_length} characters of content and optimized it for better ATS compatibility and keyword matching.`,
-        strengths: [
-          `Strong ${parsedResumeData.experience?.length || 0} work experience entries with quantifiable achievements`,
-          `Comprehensive skill set including ${technicalSkills.slice(0, 3).join(', ')} and more`,
-          `Educational background from ${parsedResumeData.education?.[0]?.school || 'recognized institution'}`,
-          "Well-structured resume format suitable for ATS systems"
-        ],
-        gaps: [
-          "Some industry-specific keywords could be emphasized more prominently",
-          "Consider adding more quantified achievements with specific metrics",
-          "Professional summary section could be enhanced for better impact"
-        ],
-        suggestions: [
-          "Incorporate more action verbs and industry-specific terminology",
-          "Add specific metrics and percentages to quantify your achievements",
-          "Consider reorganizing sections to highlight most relevant experience first",
-          "Include relevant certifications or training programs if applicable"
-        ],
         optimizedResumeUrl: enhancedResumeUrl,
         optimizedCoverLetterUrl: enhancedCoverLetterUrl,
+        
+        // Use real keyword analysis
         keywordAnalysis: {
-          coverageScore: matchScore,
-          coveredKeywords: technicalSkills.slice(0, 7),
-          missingKeywords: ["Docker", "Kubernetes", "CI/CD", "Microservices", "AWS"]
+          coverageScore: normalizedResult.analysis.keyword_analysis.keyword_density_score,
+          coveredKeywords: normalizedResult.analysis.keyword_analysis.present_keywords,
+          missingKeywords: normalizedResult.analysis.keyword_analysis.missing_keywords
         },
+        
+        // Enhanced experience optimization using real data
         experienceOptimization: parsedResumeData.experience?.map((exp: any, index: number) => ({
           company: exp.company || 'Unknown Company',
           position: exp.position || 'Unknown Position',
-          relevanceScore: Math.max(70, 95 - (index * 10)),
+          relevanceScore: Math.max(70, normalizedResult.analysis.match_score - (index * 5)),
           included: index < 3, // Include top 3 most relevant
-          reasoning: index >= 3 ? "Less relevant to target position" : undefined
+          reasoning: index >= 3 ? "Less relevant to target position based on AI analysis" : undefined
         })) || [],
+        
+        // Enhanced skills optimization
         skillsOptimization: {
-          technicalSkills: technicalSkills,
+          technicalSkills: normalizedResult.enhancements.enhanced_skills.length > 0 
+            ? normalizedResult.enhancements.enhanced_skills 
+            : Array.isArray(parsedResumeData.skills) ? parsedResumeData.skills.slice(0, 8) : [],
           softSkills: ["Leadership", "Problem Solving", "Communication", "Team Collaboration"],
-          missingSkills: ["Docker", "Kubernetes", "GraphQL", "TypeScript"]
+          missingSkills: normalizedResult.analysis.keyword_analysis.missing_keywords.slice(0, 5)
         },
+        
+        // Include parsed resume data
         parsedResume: parsedResumeData,
+        
+        // Enhanced metadata
         extractionMetadata: {
           documentId: documentId,
           extractedTextLength: extractionResult.extracted_text_length,
           processingTime: Date.now() - timestamp,
-          modelUsed: config.defaultModel,
-          apiBaseUrl: config.apiBaseUrl
-        }
+          modelUsed: normalizedResult.metadata.model_used,
+          apiBaseUrl: config.apiBaseUrl,
+          sectionsAnalyzed: normalizedResult.metadata.resume_sections_analyzed
+        },
+        
+        // Include AI enhancements
+        aiEnhancements: {
+          enhancedSummary: normalizedResult.enhancements.enhanced_summary,
+          enhancedExperienceBullets: normalizedResult.enhancements.enhanced_experience_bullets,
+          coverLetterOutline: normalizedResult.enhancements.cover_letter_outline,
+          sectionRecommendations: normalizedResult.analysis.section_recommendations
+        },
+        
+        // Include raw AI response for debugging
+        rawAIResponse: normalizedResult
       };
 
-      setOptimizationResults(mockResults);
+      setOptimizationResults(optimizationResults);
       setShowResults(true);
       
     } catch (err: any) {
@@ -243,7 +295,7 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       
       if (err.message.includes('Failed to fetch') || err.message.includes('network')) {
         userMessage = 'Unable to connect to the AI service. Please check your internet connection and try again.';
-      } else if (err.message.includes('timeout')) {
+      } else if (err.message.includes('timeout') || err.message.includes('timed out')) {
         userMessage = 'The AI processing is taking longer than expected. Please try again with a smaller file or try again later.';
       } else if (err.message.includes('API key')) {
         userMessage = 'API configuration error. Please contact support for assistance.';
@@ -337,7 +389,7 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
                     ? 'text-green-800 dark:text-green-200' 
                     : 'text-red-800 dark:text-red-200'
                 }`}>
-                  API Configuration {config.hasApiKey ? 'Ready' : 'Required'}
+                  AI Analysis Configuration {config.hasApiKey ? 'Ready' : 'Required'}
                 </h4>
                 <div className={`text-sm mt-1 ${
                   config.hasApiKey 
@@ -347,6 +399,12 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
                   <p>API Endpoint: <code className="bg-black/10 px-1 rounded">{config.apiBaseUrl}</code></p>
                   <p>Model: <code className="bg-black/10 px-1 rounded">{config.defaultModel}</code></p>
                   <p>API Key: {config.hasApiKey ? '✓ Configured' : '✗ Missing VITE_OPENAI_API_KEY'}</p>
+                  <p className="text-xs mt-1">
+                    {config.hasApiKey 
+                      ? 'Ready for resume extraction and AI enhancement analysis'
+                      : 'Both resume extraction and AI enhancement require API configuration'
+                    }
+                  </p>
                 </div>
               </div>
             </div>
