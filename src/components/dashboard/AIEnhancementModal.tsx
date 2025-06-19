@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, Sparkles, Cloud, HardDrive } from 'lucide-react';
+import { X, Upload, FileText, Sparkles, Cloud, HardDrive, AlertCircle, CheckCircle } from 'lucide-react';
 import OptimizationResults from './OptimizationResults';
+import { ResumeExtractionService } from '../../services/resumeExtractionService';
 
 interface AIEnhancementModalProps {
   jobDescription: string;
@@ -20,24 +21,16 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
   const [error, setError] = useState('');
   const [showResults, setShowResults] = useState(false);
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
+  const [extractionProgress, setExtractionProgress] = useState<string>('');
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      // Validate file type
-      const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ];
+      // Validate file
+      const validation = ResumeExtractionService.validateResumeFile(file);
       
-      if (!allowedTypes.includes(file.type)) {
-        setError('Please select a PDF or Word document');
-        return;
-      }
-      
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        setError('File size must be less than 10MB');
+      if (!validation.isValid) {
+        setError(validation.error || 'Invalid file');
         return;
       }
       
@@ -53,6 +46,21 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
     setCloudFileUrl('');
   };
 
+  const downloadFileFromUrl = async (url: string): Promise<File> => {
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      const filename = url.split('/').pop() || 'resume.pdf';
+      return new File([blob], filename, { type: blob.type });
+    } catch (error) {
+      throw new Error('Failed to download file from URL. Please check the URL and permissions.');
+    }
+  };
+
   const handleGenerateAI = async () => {
     if (!selectedFile && !cloudFileUrl) {
       setError('Please select a resume file or provide a cloud file URL');
@@ -66,69 +74,107 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
 
     setLoading(true);
     setError('');
+    setExtractionProgress('');
 
     try {
-      // Simulate AI processing
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      let fileToProcess = selectedFile;
+
+      // If using cloud URL, download the file first
+      if (cloudFileUrl && !selectedFile) {
+        setExtractionProgress('Downloading file from cloud storage...');
+        fileToProcess = await downloadFileFromUrl(cloudFileUrl);
+      }
+
+      if (!fileToProcess) {
+        throw new Error('No file to process');
+      }
+
+      // Extract resume data using AI
+      setExtractionProgress('Extracting resume data using AI...');
+      const extractionResult = await ResumeExtractionService.extractResumeJson(fileToProcess, {
+        modelType: 'OpenAI',
+        model: 'gpt-4o',
+        fileId: `ai_enhancement_${Date.now()}`
+      });
+
+      if (!extractionResult.success) {
+        throw new Error(extractionResult.error || 'Failed to extract resume data');
+      }
+
+      setExtractionProgress('Processing extracted data...');
       
-      // Generate mock URLs for the enhanced documents
+      // Parse the extracted resume data
+      const parsedResumeData = ResumeExtractionService.parseResumeData(extractionResult.resume_json);
+      
+      if (!parsedResumeData) {
+        throw new Error('Failed to parse extracted resume data');
+      }
+
+      setExtractionProgress('Generating AI optimization analysis...');
+
+      // Generate mock optimization results with real extracted data
       const timestamp = Date.now();
       const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${timestamp}.pdf`;
       const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${timestamp}.pdf`;
       
-      // Generate mock optimization results
+      // Calculate match score based on extracted data
+      const calculateMatchScore = (resumeData: any, jobDesc: string): number => {
+        const jobKeywords = jobDesc.toLowerCase().split(/\s+/).filter(word => word.length > 3);
+        const resumeText = JSON.stringify(resumeData).toLowerCase();
+        const matchedKeywords = jobKeywords.filter(keyword => resumeText.includes(keyword));
+        return Math.min(95, Math.max(60, Math.round((matchedKeywords.length / jobKeywords.length) * 100)));
+      };
+
+      const matchScore = calculateMatchScore(parsedResumeData, jobDescription);
+
       const mockResults = {
-        matchScore: 85,
-        summary: "Your resume shows strong alignment with this position, with excellent technical skills and relevant experience. The AI optimization has enhanced keyword density and improved content structure for better ATS compatibility.",
+        matchScore,
+        summary: `Your resume shows ${matchScore >= 80 ? 'excellent' : matchScore >= 70 ? 'good' : 'moderate'} alignment with this position. The AI has extracted ${extractionResult.extracted_text_length} characters of content and optimized it for better ATS compatibility and keyword matching.`,
         strengths: [
-          "Strong technical background in required technologies",
-          "Relevant industry experience with measurable achievements",
-          "Good educational background aligned with job requirements",
-          "Demonstrated leadership and project management skills"
+          `Strong ${parsedResumeData.experience?.length || 0} work experience entries with quantifiable achievements`,
+          `Comprehensive skill set including ${parsedResumeData.skills?.slice(0, 3).join(', ')} and more`,
+          `Educational background from ${parsedResumeData.education?.[0]?.school || 'recognized institution'}`,
+          "Well-structured resume format suitable for ATS systems"
         ],
         gaps: [
-          "Missing some specific certifications mentioned in job posting",
-          "Could emphasize cloud computing experience more prominently",
-          "Limited mention of agile methodology experience"
+          "Some industry-specific keywords could be emphasized more prominently",
+          "Consider adding more quantified achievements with specific metrics",
+          "Professional summary section could be enhanced for better impact"
         ],
         suggestions: [
-          "Add specific metrics to quantify your achievements",
-          "Include more industry-specific keywords throughout the resume",
-          "Highlight collaborative projects and team leadership examples",
-          "Consider adding a professional summary section"
+          "Incorporate more action verbs and industry-specific terminology",
+          "Add specific metrics and percentages to quantify your achievements",
+          "Consider reorganizing sections to highlight most relevant experience first",
+          "Include relevant certifications or training programs if applicable"
         ],
         optimizedResumeUrl: enhancedResumeUrl,
         optimizedCoverLetterUrl: enhancedCoverLetterUrl,
         keywordAnalysis: {
-          coverageScore: 78,
-          coveredKeywords: ["JavaScript", "React", "Node.js", "AWS", "Git", "Agile", "Team Leadership"],
-          missingKeywords: ["Docker", "Kubernetes", "CI/CD", "Microservices"]
+          coverageScore: matchScore,
+          coveredKeywords: parsedResumeData.skills?.slice(0, 7) || ["JavaScript", "React", "Node.js", "Python", "Git"],
+          missingKeywords: ["Docker", "Kubernetes", "CI/CD", "Microservices", "AWS"]
         },
-        experienceOptimization: [
-          {
-            company: "Tech Solutions Inc",
-            position: "Senior Developer",
-            relevanceScore: 92,
-            included: true
-          },
-          {
-            company: "StartupXYZ",
-            position: "Full Stack Developer",
-            relevanceScore: 85,
-            included: true
-          },
-          {
-            company: "Local Restaurant",
-            position: "Server",
-            relevanceScore: 15,
-            included: false,
-            reasoning: "Not relevant to software development position"
-          }
-        ],
+        experienceOptimization: parsedResumeData.experience?.map((exp: any, index: number) => ({
+          company: exp.company,
+          position: exp.position,
+          relevanceScore: Math.max(70, 95 - (index * 10)),
+          included: index < 3, // Include top 3 most relevant
+          reasoning: index >= 3 ? "Less relevant to target position" : undefined
+        })) || [],
         skillsOptimization: {
-          technicalSkills: ["JavaScript", "React", "Node.js", "Python", "AWS", "MongoDB"],
-          softSkills: ["Team Leadership", "Problem Solving", "Communication", "Project Management"],
+          technicalSkills: parsedResumeData.skills?.filter((skill: string) => 
+            ['javascript', 'react', 'python', 'node', 'sql', 'git', 'aws', 'docker'].some(tech => 
+              skill.toLowerCase().includes(tech)
+            )
+          ).slice(0, 8) || [],
+          softSkills: ["Leadership", "Problem Solving", "Communication", "Team Collaboration"],
           missingSkills: ["Docker", "Kubernetes", "GraphQL", "TypeScript"]
+        },
+        parsedResume: parsedResumeData,
+        extractionMetadata: {
+          extractedTextLength: extractionResult.extracted_text_length,
+          processingTime: Date.now() - timestamp,
+          modelUsed: 'gpt-4o'
         }
       };
 
@@ -136,9 +182,11 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       setShowResults(true);
       
     } catch (err: any) {
-      setError('Failed to generate AI-enhanced documents. Please try again.');
+      console.error('AI Enhancement Error:', err);
+      setError(err.message || 'Failed to generate AI-enhanced documents. Please try again.');
     } finally {
       setLoading(false);
+      setExtractionProgress('');
     }
   };
 
@@ -182,8 +230,16 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
 
         <div className="p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm">
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
+              <AlertCircle size={16} />
               {error}
+            </div>
+          )}
+
+          {extractionProgress && (
+            <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-3 rounded-lg text-sm flex items-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+              {extractionProgress}
             </div>
           )}
 
@@ -224,15 +280,16 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
                     <input
                       type="file"
                       className="hidden"
-                      accept=".pdf,.doc,.docx"
+                      accept=".pdf,.doc,.docx,.txt"
                       onChange={handleFileSelect}
                     />
                   </label>
                   <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Select PDF or Word document (max 10MB)
+                    Select PDF, Word document, or text file (max 10MB)
                   </p>
                   {selectedFile && (
-                    <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/30 rounded-lg">
+                    <div className="mt-3 p-2 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center gap-2">
+                      <CheckCircle size={16} className="text-green-600 dark:text-green-400" />
                       <p className="text-sm text-green-700 dark:text-green-400">
                         Selected: {selectedFile.name}
                       </p>
@@ -321,6 +378,20 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
             </div>
           </div>
 
+          {/* API Configuration Notice */}
+          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="text-yellow-600 dark:text-yellow-400 mt-0.5" size={16} />
+              <div>
+                <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">API Configuration Required</h4>
+                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                  Make sure you have set the <code className="bg-yellow-100 dark:bg-yellow-800 px-1 rounded">VITE_OPENAI_API_KEY</code> environment variable 
+                  for AI resume extraction to work properly.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Generate Button */}
           <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
@@ -332,7 +403,7 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                  Generating AI Enhanced Documents...
+                  {extractionProgress || 'Processing...'}
                 </>
               ) : (
                 <>
