@@ -9,6 +9,15 @@ interface AIEnhancementModalProps {
   onClose: () => void;
 }
 
+// Generate a random UUID v4
+const generateUUID = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({ 
   jobDescription, 
   onSave, 
@@ -22,6 +31,7 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
   const [showResults, setShowResults] = useState(false);
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
   const [extractionProgress, setExtractionProgress] = useState<string>('');
+  const [documentId] = useState<string>(generateUUID()); // Generate once and keep it
 
   // Get configuration for display
   const config = ResumeExtractionService.getConfiguration();
@@ -64,6 +74,21 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
     }
   };
 
+  // Safe skill filtering function
+  const filterSkillsByKeywords = (skills: any[], keywords: string[]): string[] => {
+    if (!Array.isArray(skills)) return [];
+    
+    return skills
+      .filter(skill => {
+        // Ensure skill is a string
+        if (typeof skill !== 'string') return false;
+        
+        const skillLower = skill.toLowerCase();
+        return keywords.some(keyword => skillLower.includes(keyword.toLowerCase()));
+      })
+      .slice(0, 8); // Limit to 8 skills
+  };
+
   const handleGenerateAI = async () => {
     if (!selectedFile && !cloudFileUrl) {
       setError('Please select a resume file or provide a cloud file URL');
@@ -103,11 +128,28 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       const extractionResult = await ResumeExtractionService.extractResumeJson(fileToProcess, {
         modelType: config.defaultModelType,
         model: config.defaultModel,
-        fileId: `ai_enhancement_${Date.now()}`
+        fileId: documentId // Use the persistent UUID
       });
 
       if (!extractionResult.success) {
-        throw new Error(extractionResult.error || 'Failed to extract resume data');
+        // Handle specific API errors
+        if (extractionResult.error?.includes('PDF format not supported') || 
+            extractionResult.error?.includes('format not supported') ||
+            extractionResult.error?.includes('unsupported file type')) {
+          throw new Error('PDF format not supported by the current API. Please try uploading a Word document (.docx) or text file (.txt) instead.');
+        }
+        
+        if (extractionResult.error?.includes('API key') || 
+            extractionResult.error?.includes('authentication')) {
+          throw new Error('API authentication failed. Please check your OpenAI API key configuration.');
+        }
+        
+        if (extractionResult.error?.includes('rate limit') || 
+            extractionResult.error?.includes('quota')) {
+          throw new Error('API rate limit exceeded. Please try again in a few minutes.');
+        }
+        
+        throw new Error(extractionResult.error || 'Failed to extract resume data. The API may be temporarily unavailable.');
       }
 
       setExtractionProgress('Processing extracted data...');
@@ -116,15 +158,15 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       const parsedResumeData = ResumeExtractionService.parseResumeData(extractionResult.resume_json);
       
       if (!parsedResumeData) {
-        throw new Error('Failed to parse extracted resume data');
+        throw new Error('Failed to parse extracted resume data. The resume format may not be compatible.');
       }
 
       setExtractionProgress('Generating AI optimization analysis...');
 
       // Generate mock optimization results with real extracted data
       const timestamp = Date.now();
-      const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${timestamp}.pdf`;
-      const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${timestamp}.pdf`;
+      const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${documentId}.pdf`;
+      const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${documentId}.pdf`;
       
       // Calculate match score based on extracted data
       const calculateMatchScore = (resumeData: any, jobDesc: string): number => {
@@ -136,12 +178,17 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
 
       const matchScore = calculateMatchScore(parsedResumeData, jobDescription);
 
+      // Safe skill processing
+      const allSkills = Array.isArray(parsedResumeData.skills) ? parsedResumeData.skills : [];
+      const technicalKeywords = ['javascript', 'react', 'python', 'node', 'sql', 'git', 'aws', 'docker', 'java', 'typescript'];
+      const technicalSkills = filterSkillsByKeywords(allSkills, technicalKeywords);
+
       const mockResults = {
         matchScore,
         summary: `Your resume shows ${matchScore >= 80 ? 'excellent' : matchScore >= 70 ? 'good' : 'moderate'} alignment with this position. The AI has extracted ${extractionResult.extracted_text_length} characters of content and optimized it for better ATS compatibility and keyword matching.`,
         strengths: [
           `Strong ${parsedResumeData.experience?.length || 0} work experience entries with quantifiable achievements`,
-          `Comprehensive skill set including ${parsedResumeData.skills?.slice(0, 3).join(', ')} and more`,
+          `Comprehensive skill set including ${technicalSkills.slice(0, 3).join(', ')} and more`,
           `Educational background from ${parsedResumeData.education?.[0]?.school || 'recognized institution'}`,
           "Well-structured resume format suitable for ATS systems"
         ],
@@ -160,27 +207,24 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         optimizedCoverLetterUrl: enhancedCoverLetterUrl,
         keywordAnalysis: {
           coverageScore: matchScore,
-          coveredKeywords: parsedResumeData.skills?.slice(0, 7) || ["JavaScript", "React", "Node.js", "Python", "Git"],
+          coveredKeywords: technicalSkills.slice(0, 7),
           missingKeywords: ["Docker", "Kubernetes", "CI/CD", "Microservices", "AWS"]
         },
         experienceOptimization: parsedResumeData.experience?.map((exp: any, index: number) => ({
-          company: exp.company,
-          position: exp.position,
+          company: exp.company || 'Unknown Company',
+          position: exp.position || 'Unknown Position',
           relevanceScore: Math.max(70, 95 - (index * 10)),
           included: index < 3, // Include top 3 most relevant
           reasoning: index >= 3 ? "Less relevant to target position" : undefined
         })) || [],
         skillsOptimization: {
-          technicalSkills: parsedResumeData.skills?.filter((skill: string) => 
-            ['javascript', 'react', 'python', 'node', 'sql', 'git', 'aws', 'docker'].some(tech => 
-              skill.toLowerCase().includes(tech)
-            )
-          ).slice(0, 8) || [],
+          technicalSkills: technicalSkills,
           softSkills: ["Leadership", "Problem Solving", "Communication", "Team Collaboration"],
           missingSkills: ["Docker", "Kubernetes", "GraphQL", "TypeScript"]
         },
         parsedResume: parsedResumeData,
         extractionMetadata: {
+          documentId: documentId,
           extractedTextLength: extractionResult.extracted_text_length,
           processingTime: Date.now() - timestamp,
           modelUsed: config.defaultModel,
@@ -193,7 +237,21 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       
     } catch (err: any) {
       console.error('AI Enhancement Error:', err);
-      setError(err.message || 'Failed to generate AI-enhanced documents. Please try again.');
+      
+      // Provide user-friendly error messages
+      let userMessage = err.message;
+      
+      if (err.message.includes('Failed to fetch') || err.message.includes('network')) {
+        userMessage = 'Unable to connect to the AI service. Please check your internet connection and try again.';
+      } else if (err.message.includes('timeout')) {
+        userMessage = 'The AI processing is taking longer than expected. Please try again with a smaller file or try again later.';
+      } else if (err.message.includes('API key')) {
+        userMessage = 'API configuration error. Please contact support for assistance.';
+      } else if (!err.message || err.message === 'Failed to generate AI-enhanced documents. Please try again.') {
+        userMessage = 'The AI service is temporarily unavailable. Please try again in a few minutes or contact support if the issue persists.';
+      }
+      
+      setError(userMessage);
     } finally {
       setLoading(false);
       setExtractionProgress('');
@@ -226,9 +284,14 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
             <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
               <Sparkles className="text-white" size={20} />
             </div>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-              AI Enhanced Resume & Cover Letter Generator
-            </h2>
+            <div>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                AI Enhanced Resume & Cover Letter Generator
+              </h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Document ID: {documentId.slice(0, 8)}...
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -240,9 +303,12 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
 
         <div className="p-6 space-y-6">
           {error && (
-            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-3 rounded-lg text-sm flex items-center gap-2">
-              <AlertCircle size={16} />
-              {error}
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-lg text-sm flex items-start gap-3">
+              <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Error</p>
+                <p>{error}</p>
+              </div>
             </div>
           )}
 
