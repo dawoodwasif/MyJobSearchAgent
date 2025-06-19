@@ -13,14 +13,21 @@ export interface ResumeExtractionResponse {
 }
 
 export class ResumeExtractionService {
-  private static readonly API_BASE_URL = 'https://752e-108-18-123-32.ngrok-free.app';
-  private static readonly API_KEY = import.meta.env.VITE_OPENAI_API_KEY || 'your-openai-api-key-here';
+  private static readonly API_BASE_URL = import.meta.env.VITE_RESUME_API_BASE_URL || 'https://752e-108-18-123-32.ngrok-free.app';
+  private static readonly API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+  private static readonly DEFAULT_MODEL_TYPE = import.meta.env.VITE_RESUME_API_MODEL_TYPE || 'OpenAI';
+  private static readonly DEFAULT_MODEL = import.meta.env.VITE_RESUME_API_MODEL || 'gpt-4o';
 
   static async extractResumeJson(
     file: File, 
     options: ResumeExtractionOptions = {}
   ): Promise<ResumeExtractionResponse> {
     try {
+      // Validate API key
+      if (!this.API_KEY) {
+        throw new Error('OpenAI API key is not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');
+      }
+
       // Create form data
       const formData = new FormData();
       
@@ -30,10 +37,14 @@ export class ResumeExtractionService {
       // Add required API key
       formData.append('api_key', this.API_KEY);
       
-      // Add optional parameters
-      formData.append('model_type', options.modelType || 'OpenAI');
-      formData.append('model', options.model || 'gpt-4o');
+      // Add optional parameters with environment defaults
+      formData.append('model_type', options.modelType || this.DEFAULT_MODEL_TYPE);
+      formData.append('model', options.model || this.DEFAULT_MODEL);
       formData.append('file_id', options.fileId || `req_${Date.now()}`);
+
+      console.log('Making request to:', `${this.API_BASE_URL}/api/extract-resume-json`);
+      console.log('Using model:', options.model || this.DEFAULT_MODEL);
+      console.log('Using model type:', options.modelType || this.DEFAULT_MODEL_TYPE);
 
       // Make the request
       const response = await fetch(`${this.API_BASE_URL}/api/extract-resume-json`, {
@@ -53,9 +64,26 @@ export class ResumeExtractionService {
       }
 
       const data = await response.json();
+      
+      console.log('Resume extraction successful:', {
+        success: data.success,
+        textLength: data.extracted_text_length,
+        hasResumeJson: !!data.resume_json
+      });
+
       return data;
     } catch (error: any) {
       console.error('Error extracting resume JSON:', error);
+      
+      // Provide more specific error messages
+      if (error.name === 'AbortError') {
+        throw new Error('Request timed out. The AI processing is taking longer than expected. Please try again.');
+      }
+      
+      if (error.message.includes('Failed to fetch')) {
+        throw new Error('Unable to connect to the resume extraction service. Please check your internet connection and try again.');
+      }
+      
       throw new Error(error.message || 'Failed to extract resume data');
     }
   }
@@ -84,7 +112,24 @@ export class ResumeExtractionService {
       };
     }
 
+    if (file.size === 0) {
+      return {
+        isValid: false,
+        error: 'File appears to be empty'
+      };
+    }
+
     return { isValid: true };
+  }
+
+  // Get current configuration for debugging
+  static getConfiguration() {
+    return {
+      apiBaseUrl: this.API_BASE_URL,
+      hasApiKey: !!this.API_KEY,
+      defaultModelType: this.DEFAULT_MODEL_TYPE,
+      defaultModel: this.DEFAULT_MODEL
+    };
   }
 
   // Parse the extracted resume JSON into a structured format

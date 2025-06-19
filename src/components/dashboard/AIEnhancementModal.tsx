@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Upload, FileText, Sparkles, Cloud, HardDrive, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Upload, FileText, Sparkles, Cloud, HardDrive, AlertCircle, CheckCircle, Settings } from 'lucide-react';
 import OptimizationResults from './OptimizationResults';
 import { ResumeExtractionService } from '../../services/resumeExtractionService';
 
@@ -22,6 +22,9 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
   const [showResults, setShowResults] = useState(false);
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
   const [extractionProgress, setExtractionProgress] = useState<string>('');
+
+  // Get configuration for display
+  const config = ResumeExtractionService.getConfiguration();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -72,6 +75,12 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       return;
     }
 
+    // Check API configuration
+    if (!config.hasApiKey) {
+      setError('OpenAI API key is not configured. Please set VITE_OPENAI_API_KEY in your environment variables.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     setExtractionProgress('');
@@ -92,8 +101,8 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       // Extract resume data using AI
       setExtractionProgress('Extracting resume data using AI...');
       const extractionResult = await ResumeExtractionService.extractResumeJson(fileToProcess, {
-        modelType: 'OpenAI',
-        model: 'gpt-4o',
+        modelType: config.defaultModelType,
+        model: config.defaultModel,
         fileId: `ai_enhancement_${Date.now()}`
       });
 
@@ -174,7 +183,8 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         extractionMetadata: {
           extractedTextLength: extractionResult.extracted_text_length,
           processingTime: Date.now() - timestamp,
-          modelUsed: 'gpt-4o'
+          modelUsed: config.defaultModel,
+          apiBaseUrl: config.apiBaseUrl
         }
       };
 
@@ -242,6 +252,39 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
               {extractionProgress}
             </div>
           )}
+
+          {/* API Configuration Status */}
+          <div className={`border rounded-lg p-4 ${
+            config.hasApiKey 
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-700' 
+              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-700'
+          }`}>
+            <div className="flex items-start gap-3">
+              <Settings className={`mt-0.5 ${
+                config.hasApiKey 
+                  ? 'text-green-600 dark:text-green-400' 
+                  : 'text-red-600 dark:text-red-400'
+              }`} size={16} />
+              <div>
+                <h4 className={`text-sm font-medium ${
+                  config.hasApiKey 
+                    ? 'text-green-800 dark:text-green-200' 
+                    : 'text-red-800 dark:text-red-200'
+                }`}>
+                  API Configuration {config.hasApiKey ? 'Ready' : 'Required'}
+                </h4>
+                <div className={`text-sm mt-1 ${
+                  config.hasApiKey 
+                    ? 'text-green-700 dark:text-green-300' 
+                    : 'text-red-700 dark:text-red-300'
+                }`}>
+                  <p>API Endpoint: <code className="bg-black/10 px-1 rounded">{config.apiBaseUrl}</code></p>
+                  <p>Model: <code className="bg-black/10 px-1 rounded">{config.defaultModel}</code></p>
+                  <p>API Key: {config.hasApiKey ? '✓ Configured' : '✗ Missing VITE_OPENAI_API_KEY'}</p>
+                </div>
+              </div>
+            </div>
+          </div>
 
           {/* Job Description - First Field */}
           <div>
@@ -378,26 +421,12 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
             </div>
           </div>
 
-          {/* API Configuration Notice */}
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="text-yellow-600 dark:text-yellow-400 mt-0.5" size={16} />
-              <div>
-                <h4 className="text-sm font-medium text-yellow-800 dark:text-yellow-200">API Configuration Required</h4>
-                <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                  Make sure you have set the <code className="bg-yellow-100 dark:bg-yellow-800 px-1 rounded">VITE_OPENAI_API_KEY</code> environment variable 
-                  for AI resume extraction to work properly.
-                </p>
-              </div>
-            </div>
-          </div>
-
           {/* Generate Button */}
           <div className="flex gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={handleGenerateAI}
-              disabled={loading || (!selectedFile && !cloudFileUrl) || !jobDescription.trim()}
+              disabled={loading || (!selectedFile && !cloudFileUrl) || !jobDescription.trim() || !config.hasApiKey}
               className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center gap-2 transition-all disabled:cursor-not-allowed"
             >
               {loading ? (
