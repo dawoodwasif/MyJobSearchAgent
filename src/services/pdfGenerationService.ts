@@ -13,8 +13,18 @@ export interface GenerateCoverLetterOptions {
 
 export interface PersonalInfo {
   name: string;
-  phone: string;
   email: string;
+  phone: string;
+  address?: string;
+  linkedin?: string;
+}
+
+export interface CompanyInfo {
+  position: string;
+  company_name: string;
+  location: string;
+  hiring_manager?: string;
+  department?: string;
 }
 
 export interface OptimizeResumeRequest {
@@ -31,11 +41,9 @@ export interface OptimizeResumeRequest {
 export interface GenerateCoverLetterRequest {
   file_id: string;
   job_description: string;
-  position: string;
-  company_name: string;
-  location: string;
-  personal_info: PersonalInfo;
   api_key: string;
+  personal_info: PersonalInfo;
+  company_info: CompanyInfo;
   model_type?: string;
   model?: string;
 }
@@ -162,7 +170,7 @@ export class PDFGenerationService {
     }
   }
 
-  // Generate cover letter PDF
+  // Generate cover letter PDF - Updated to match new API format
   static async generateCoverLetter(
     fileId: string,
     jobDescription: string,
@@ -187,14 +195,25 @@ export class PDFGenerationService {
         throw new Error('Personal name and email are required for cover letter generation');
       }
 
+      // Build the request data according to the new API format
       const requestData: GenerateCoverLetterRequest = {
         file_id: fileId,
         job_description: jobDescription,
-        position: position,
-        company_name: companyName,
-        location: location || '',
-        personal_info: personalInfo,
         api_key: this.API_KEY,
+        personal_info: {
+          name: personalInfo.name,
+          email: personalInfo.email,
+          phone: personalInfo.phone || '',
+          address: personalInfo.address || '',
+          linkedin: personalInfo.linkedin || ''
+        },
+        company_info: {
+          position: position,
+          company_name: companyName,
+          location: location || '',
+          hiring_manager: '', // Could be extracted from job description or added as optional parameter
+          department: '' // Could be extracted from job description or added as optional parameter
+        },
         model_type: options.modelType || this.DEFAULT_MODEL_TYPE,
         model: options.model || this.DEFAULT_MODEL
       };
@@ -304,13 +323,15 @@ export class PDFGenerationService {
     return this.AVAILABLE_TEMPLATES.includes(template);
   }
 
-  // Extract personal info from parsed resume data
+  // Extract personal info from parsed resume data - Updated to include address and linkedin
   static extractPersonalInfo(parsedResume: any): PersonalInfo {
     const personal = parsedResume?.personal || {};
     return {
       name: personal.name || 'Unknown',
+      email: personal.email || 'unknown@email.com',
       phone: personal.phone || '',
-      email: personal.email || 'unknown@email.com'
+      address: personal.location || '', // Use location as address
+      linkedin: personal.linkedin || ''
     };
   }
 
@@ -333,6 +354,48 @@ export class PDFGenerationService {
       'BGJC': 'Business-focused layout with traditional styling',
       'Plush': 'Elegant design with refined typography',
       'Alta': 'Sophisticated template with premium appearance'
+    };
+  }
+
+  // Helper method to build company info from job description and application data
+  static buildCompanyInfo(
+    position: string,
+    companyName: string,
+    location: string,
+    jobDescription?: string
+  ): CompanyInfo {
+    // Try to extract hiring manager and department from job description
+    let hiringManager = '';
+    let department = '';
+
+    if (jobDescription) {
+      // Simple regex patterns to extract common information
+      const hiringManagerMatch = jobDescription.match(/(?:contact|reach out to|hiring manager|recruiter)[\s:]*([A-Z][a-z]+ [A-Z][a-z]+)/i);
+      if (hiringManagerMatch) {
+        hiringManager = hiringManagerMatch[1];
+      }
+
+      const departmentMatch = jobDescription.match(/(?:department|team|division)[\s:]*([A-Z][a-z]+(?: [A-Z][a-z]+)*)/i);
+      if (departmentMatch) {
+        department = departmentMatch[1];
+      }
+
+      // Common department keywords
+      const deptKeywords = ['Engineering', 'Technology', 'IT', 'Software', 'Development', 'Product', 'Marketing', 'Sales', 'HR', 'Human Resources', 'Finance', 'Operations'];
+      for (const keyword of deptKeywords) {
+        if (jobDescription.toLowerCase().includes(keyword.toLowerCase())) {
+          department = department || keyword;
+          break;
+        }
+      }
+    }
+
+    return {
+      position,
+      company_name: companyName,
+      location,
+      hiring_manager: hiringManager,
+      department: department
     };
   }
 }
