@@ -46,15 +46,15 @@ export class PDFGenerationService {
   private static readonly DEFAULT_MODEL_TYPE = import.meta.env.VITE_RESUME_API_MODEL_TYPE || 'OpenAI';
   private static readonly DEFAULT_MODEL = import.meta.env.VITE_RESUME_API_MODEL || 'gpt-4o';
 
-  // Available LaTeX templates
+  // Available LaTeX templates - Updated to match your backend
   static readonly AVAILABLE_TEMPLATES = [
-    'Modern',
-    'Classic',
-    'Professional',
-    'Creative',
-    'Minimal',
-    'Academic',
-    'Executive'
+    'Simple',
+    'Modern', 
+    'Awesome',
+    'Deedy',
+    'BGJC',
+    'Plush',
+    'Alta'
   ];
 
   // Generate optimized resume PDF
@@ -74,10 +74,16 @@ export class PDFGenerationService {
         throw new Error('File ID and job description are required for resume optimization');
       }
 
+      // Validate template
+      const template = options.template || 'Modern';
+      if (!this.validateTemplate(template)) {
+        throw new Error(`Invalid template "${template}". Available templates: ${this.AVAILABLE_TEMPLATES.join(', ')}`);
+      }
+
       const requestData: OptimizeResumeRequest = {
         file_id: fileId,
         job_description: jobDescription,
-        template: options.template || 'Modern',
+        template: template,
         api_key: this.API_KEY,
         model_type: options.modelType || this.DEFAULT_MODEL_TYPE,
         model: options.model || this.DEFAULT_MODEL,
@@ -149,7 +155,7 @@ export class PDFGenerationService {
       }
 
       if (error.message.includes('LaTeX') || error.message.includes('template')) {
-        throw new Error('PDF template processing failed. Please try a different template or contact support.');
+        throw new Error(`PDF template processing failed. Please try a different template. Available templates: ${this.AVAILABLE_TEMPLATES.join(', ')}`);
       }
       
       throw new Error(error.message || 'Failed to generate optimized resume PDF');
@@ -314,6 +320,19 @@ export class PDFGenerationService {
       position: applicationData?.position || 'Position',
       companyName: applicationData?.company_name || 'Company',
       location: applicationData?.location || ''
+    };
+  }
+
+  // Get template descriptions for UI
+  static getTemplateDescriptions(): Record<string, string> {
+    return {
+      'Simple': 'Clean and minimalist design with clear sections',
+      'Modern': 'Contemporary layout with subtle design elements',
+      'Awesome': 'Eye-catching design with modern typography',
+      'Deedy': 'Professional academic-style template',
+      'BGJC': 'Business-focused layout with traditional styling',
+      'Plush': 'Elegant design with refined typography',
+      'Alta': 'Sophisticated template with premium appearance'
     };
   }
 }
