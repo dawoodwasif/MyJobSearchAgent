@@ -68,14 +68,17 @@ const ResumeTemplateForm: React.FC<ResumeTemplateFormProps> = ({
     new Set(['personal', 'education', 'experience', 'skills', 'template'])
   );
   const [formatChoice, setFormatChoice] = useState('html');
-  const [selectedTemplate, setSelectedTemplate] = useState('modern');
+  const [selectedTemplate, setSelectedTemplate] = useState('Simple'); // Changed default to 'Simple'
 
-  // Mock templates data
+  // Mock templates data - Updated to match available templates
   const templates = [
-    { id: 'modern', name: 'Modern Professional', preview: '/api/placeholder/200/250' },
-    { id: 'classic', name: 'Classic Traditional', preview: '/api/placeholder/200/250' },
-    { id: 'creative', name: 'Creative Design', preview: '/api/placeholder/200/250' },
-    { id: 'minimal', name: 'Minimal Clean', preview: '/api/placeholder/200/250' }
+    { id: 'Simple', name: 'Simple', preview: '/api/placeholder/200/250' },
+    { id: 'Modern', name: 'Modern', preview: '/api/placeholder/200/250' },
+    { id: 'Awesome', name: 'Awesome', preview: '/api/placeholder/200/250' },
+    { id: 'Deedy', name: 'Deedy', preview: '/api/placeholder/200/250' },
+    { id: 'BGJC', name: 'BGJC', preview: '/api/placeholder/200/250' },
+    { id: 'Plush', name: 'Plush', preview: '/api/placeholder/200/250' },
+    { id: 'Alta', name: 'Alta', preview: '/api/placeholder/200/250' }
   ];
 
   useEffect(() => {

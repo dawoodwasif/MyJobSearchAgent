@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Building, FileText, User, Link, Sparkles } from 'lucide-react';
+import { X, Calendar, Building, FileText, User, Link, Sparkles, MapPin } from 'lucide-react';
 import { JobApplication, ApplicationStatus } from '../../types/jobApplication';
 import { useAuth } from '../../hooks/useAuth';
 import AIEnhancementModal from './AIEnhancementModal';
@@ -16,6 +16,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
     position: '',
     status: 'not_applied' as keyof typeof ApplicationStatus,
     application_date: '',
+    location: '',
     job_posting_url: '',
     job_description: '',
     notes: '',
@@ -34,6 +35,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
         position: application.position,
         status: application.status as keyof typeof ApplicationStatus,
         application_date: application.application_date.split('T')[0],
+        location: (application as any).location || '',
         job_posting_url: application.job_posting_url || '',
         job_description: application.job_description || '',
         notes: application.notes || '',
@@ -46,6 +48,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
         position: '',
         status: 'not_applied',
         application_date: new Date().toISOString().split('T')[0],
+        location: '',
         job_posting_url: '',
         job_description: '',
         notes: '',
@@ -141,7 +144,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   <Calendar size={16} className="inline mr-2" />
@@ -153,6 +156,20 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
                   value={formData.application_date}
                   onChange={(e) => setFormData(prev => ({ ...prev, application_date: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  <MapPin size={16} className="inline mr-2" />
+                  Location
+                </label>
+                <input
+                  type="text"
+                  value={formData.location}
+                  onChange={(e) => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  placeholder="e.g., San Francisco, CA"
                 />
               </div>
 
@@ -302,7 +319,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
           applicationData={{
             position: formData.position,
             company_name: formData.company_name,
-            location: '' // Could be extracted from job description or added as a field
+            location: formData.location
           }}
           onSave={handleAISave}
           onClose={() => setShowAIModal(false)}
