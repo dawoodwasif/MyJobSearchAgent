@@ -21,7 +21,7 @@ const TeamMember: React.FC<TeamMemberProps> = ({ image, name, role, bio }) => {
       <div className="p-6 pt-2">
         <h3 className="text-xl font-semibold text-gray-900 dark:text-white text-center">{name}</h3>
         <p className="text-blue-600 dark:text-blue-400 font-medium mb-3 text-center">{role}</p>
-        <p className="text-gray-600 dark:text-gray-300 mb-4 text-center">{bio}</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-4 text-center text-sm leading-relaxed">{bio}</p>
         <div className="flex gap-3 justify-center">
           <a 
             href="#" 
@@ -85,7 +85,7 @@ const Team: React.FC = () => {
     {
       image: "https://drive.google.com/file/d/10YcQPLSgn8CCatLiOAvIQyUwJ4uICfp5/preview",
       name: "Mona Aggarwal",
-      role: "Project Design and Managment",
+      role: "Project Design and Management",
       bio: "UX/UI expert crafting intuitive user experiences that make job searching seamless and engaging for our users."
     },
     {
@@ -97,7 +97,7 @@ const Team: React.FC = () => {
     {
       image: "https://drive.google.com/file/d/1UitP1dpGvgaxHOl3_NRj7UIWsNbK10RN/preview",
       name: "Vandana Pawar",
-      role: "Project Managment/Security",
+      role: "Project Management/Security",
       bio: "Machine learning researcher developing next-generation algorithms for resume optimization and interview analysis."
     },
     {
@@ -123,6 +123,18 @@ const Team: React.FC = () => {
       name: "Prathamesh Chaudhari",
       role: "AI Developer",
       bio: "Partnership expert building strategic alliances with top companies to create exclusive job opportunities for our users."
+    },
+    {
+      image: "https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+      name: "Sarah Mitchell",
+      role: "AI Research Scientist",
+      bio: "Leading research in natural language processing and conversational AI to enhance our interview preparation platform."
+    },
+    {
+      image: "https://images.pexels.com/photos/3184357/pexels-photo-3184357.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+      name: "David Thompson",
+      role: "Senior Backend Engineer",
+      bio: "Architecting robust and scalable backend systems that handle millions of job applications with enterprise-grade security."
     }
   ];
 
@@ -139,7 +151,8 @@ const Team: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
+        {/* Team Grid - 5 members per row on large screens */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 max-w-7xl mx-auto">
           {teamMembers.map((member, index) => (
             <TeamMember 
               key={index}
