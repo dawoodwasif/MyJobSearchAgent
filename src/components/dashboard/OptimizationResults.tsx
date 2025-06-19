@@ -1,6 +1,7 @@
 import React from 'react';
-import { X, Download, FileText, CheckCircle, AlertCircle, Target, TrendingUp, Award, Brain, Lightbulb, BarChart } from 'lucide-react';
+import { X, Download, FileText, CheckCircle, AlertCircle, Target, TrendingUp, Award, Brain, Lightbulb, BarChart, Settings } from 'lucide-react';
 import ResumeTemplateForm from './ResumeTemplateForm';
+import { PDFGenerationService } from '../../services/pdfGenerationService';
 
 interface OptimizationResultsProps {
   results: {
@@ -52,6 +53,13 @@ interface OptimizationResultsProps {
       };
     };
     rawAIResponse?: any;
+    // Job application context for PDF generation
+    jobDescription?: string;
+    applicationData?: {
+      position: string;
+      company_name: string;
+      location?: string;
+    };
   };
   onClose: () => void;
 }
@@ -59,6 +67,10 @@ interface OptimizationResultsProps {
 const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onClose }) => {
   const [showTemplateForm, setShowTemplateForm] = React.useState(false);
   const [activeTab, setActiveTab] = React.useState<'overview' | 'analysis' | 'enhancements' | 'technical'>('overview');
+  const [downloadingResume, setDownloadingResume] = React.useState(false);
+  const [downloadingCoverLetter, setDownloadingCoverLetter] = React.useState(false);
+  const [downloadError, setDownloadError] = React.useState('');
+  const [selectedTemplate, setSelectedTemplate] = React.useState('Modern');
 
   const getScoreBadge = (score: number) => {
     if (score >= 85) {
@@ -93,6 +105,80 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
   };
 
   const scoreBadge = getScoreBadge(results.matchScore);
+
+  const handleDownloadOptimizedResume = async () => {
+    if (!results.extractionMetadata?.documentId || !results.jobDescription) {
+      setDownloadError('Missing required data for PDF generation. Please try the AI enhancement process again.');
+      return;
+    }
+
+    setDownloadingResume(true);
+    setDownloadError('');
+
+    try {
+      const pdfBlob = await PDFGenerationService.optimizeResume(
+        results.extractionMetadata.documentId,
+        results.jobDescription,
+        {
+          template: selectedTemplate,
+          improveResume: true,
+          sectionOrdering: ['education', 'work', 'skills', 'projects']
+        }
+      );
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const companyName = results.applicationData?.company_name || 'Company';
+      const position = results.applicationData?.position || 'Position';
+      const filename = `Optimized_Resume_${companyName}_${position}_${timestamp}.pdf`;
+
+      PDFGenerationService.downloadBlob(pdfBlob, filename);
+      
+    } catch (error: any) {
+      console.error('Error downloading optimized resume:', error);
+      setDownloadError(error.message || 'Failed to download optimized resume');
+    } finally {
+      setDownloadingResume(false);
+    }
+  };
+
+  const handleDownloadCoverLetter = async () => {
+    if (!results.extractionMetadata?.documentId || !results.jobDescription || !results.applicationData) {
+      setDownloadError('Missing required data for cover letter generation. Please try the AI enhancement process again.');
+      return;
+    }
+
+    setDownloadingCoverLetter(true);
+    setDownloadError('');
+
+    try {
+      // Extract personal info from parsed resume
+      const personalInfo = PDFGenerationService.extractPersonalInfo(results.parsedResume);
+      
+      const pdfBlob = await PDFGenerationService.generateCoverLetter(
+        results.extractionMetadata.documentId,
+        results.jobDescription,
+        results.applicationData.position,
+        results.applicationData.company_name,
+        results.applicationData.location || '',
+        personalInfo
+      );
+
+      // Generate filename with timestamp
+      const timestamp = new Date().toISOString().slice(0, 10);
+      const companyName = results.applicationData.company_name;
+      const position = results.applicationData.position;
+      const filename = `Cover_Letter_${companyName}_${position}_${timestamp}.pdf`;
+
+      PDFGenerationService.downloadBlob(pdfBlob, filename);
+      
+    } catch (error: any) {
+      console.error('Error downloading cover letter:', error);
+      setDownloadError(error.message || 'Failed to download cover letter');
+    } finally {
+      setDownloadingCoverLetter(false);
+    }
+  };
 
   const handleContinueToApplication = () => {
     setShowTemplateForm(true);
@@ -169,6 +255,23 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
         </div>
 
         <div className="p-6 space-y-8">
+          {/* Download Error */}
+          {downloadError && (
+            <div className="bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 p-4 rounded-lg flex items-start gap-3">
+              <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="font-medium">Download Error</p>
+                <p className="text-sm">{downloadError}</p>
+              </div>
+              <button
+                onClick={() => setDownloadError('')}
+                className="ml-auto text-red-400 hover:text-red-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+          )}
+
           {/* Overview Tab */}
           {activeTab === 'overview' && (
             <>
@@ -193,28 +296,75 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                   AI-Enhanced Documents Ready
                 </h3>
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  Your optimized resume and cover letter have been generated and are ready for download.
+                  Generate and download your optimized resume and cover letter as professional PDFs.
                 </p>
-                <div className="flex gap-4 flex-wrap">
-                  <a
-                    href={results.optimizedResumeUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg"
+
+                {/* Template Selection */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    <Settings size={16} className="inline mr-2" />
+                    Resume Template
+                  </label>
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => setSelectedTemplate(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                   >
-                    <Download size={20} />
-                    Download Optimized Resume
-                  </a>
-                  <a
-                    href={results.optimizedCoverLetterUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg"
-                  >
-                    <FileText size={20} />
-                    Download Cover Letter
-                  </a>
+                    {PDFGenerationService.AVAILABLE_TEMPLATES.map(template => (
+                      <option key={template} value={template}>{template}</option>
+                    ))}
+                  </select>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Choose a LaTeX template for your optimized resume
+                  </p>
                 </div>
+
+                <div className="flex gap-4 flex-wrap">
+                  <button
+                    onClick={handleDownloadOptimizedResume}
+                    disabled={downloadingResume || !results.extractionMetadata?.documentId}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg disabled:cursor-not-allowed"
+                  >
+                    {downloadingResume ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Generating PDF...
+                      </>
+                    ) : (
+                      <>
+                        <Download size={20} />
+                        Download Optimized Resume
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleDownloadCoverLetter}
+                    disabled={downloadingCoverLetter || !results.extractionMetadata?.documentId || !results.applicationData}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-6 py-3 rounded-lg font-medium flex items-center gap-2 transition-all hover:shadow-lg disabled:cursor-not-allowed"
+                  >
+                    {downloadingCoverLetter ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        Generating PDF...
+                      </>
+                    ) : (
+                      <>
+                        <FileText size={20} />
+                        Download Cover Letter
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {(!results.extractionMetadata?.documentId || !results.applicationData) && (
+                  <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      <strong>Note:</strong> PDF generation requires complete job application data. 
+                      {!results.extractionMetadata?.documentId && " Document ID is missing."}
+                      {!results.applicationData && " Job application details are missing."}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Quick Stats */}
@@ -637,6 +787,52 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                 </div>
               )}
 
+              {/* PDF Generation Configuration */}
+              <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  📄 PDF Generation Configuration
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Available Templates:</span>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {PDFGenerationService.AVAILABLE_TEMPLATES.map((template, index) => (
+                          <span
+                            key={index}
+                            className={`px-2 py-1 rounded text-xs ${
+                              template === selectedTemplate
+                                ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                            }`}
+                          >
+                            {template}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Selected Template:</span>
+                      <p className="text-gray-900 dark:text-white">{selectedTemplate}</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">PDF Generation Status:</span>
+                      <p className="text-gray-900 dark:text-white">
+                        {results.extractionMetadata?.documentId ? '✅ Ready' : '❌ Missing Document ID'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Cover Letter Status:</span>
+                      <p className="text-gray-900 dark:text-white">
+                        {results.applicationData ? '✅ Ready' : '❌ Missing Job Details'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Raw AI Response (for debugging) */}
               {results.rawAIResponse && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -659,7 +855,7 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
               🚀 Next Steps
             </h4>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Your AI-optimized analysis is complete! Continue to create a professional PDF resume or return to your application.
+              Your AI-optimized analysis is complete! Download your professional PDFs or continue to create additional documents.
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <button

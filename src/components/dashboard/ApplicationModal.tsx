@@ -299,6 +299,11 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
       {showAIModal && (
         <AIEnhancementModal
           jobDescription={formData.job_description}
+          applicationData={{
+            position: formData.position,
+            company_name: formData.company_name,
+            location: '' // Could be extracted from job description or added as a field
+          }}
           onSave={handleAISave}
           onClose={() => setShowAIModal(false)}
         />

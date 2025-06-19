@@ -6,6 +6,11 @@ import { AIEnhancementService } from '../../services/aiEnhancementService';
 
 interface AIEnhancementModalProps {
   jobDescription: string;
+  applicationData?: {
+    position: string;
+    company_name: string;
+    location?: string;
+  };
   onSave: (resumeUrl: string, coverLetterUrl: string) => void;
   onClose: () => void;
 }
@@ -21,6 +26,7 @@ const generateUUID = (): string => {
 
 const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({ 
   jobDescription, 
+  applicationData,
   onSave, 
   onClose 
 }) => {
@@ -193,7 +199,7 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
 
       setExtractionProgress('Generating optimization recommendations...');
 
-      // Generate mock URLs for the enhanced documents
+      // Generate mock URLs for the enhanced documents (will be replaced by real PDF generation)
       const timestamp = Date.now();
       const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${documentId}.pdf`;
       const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${documentId}.pdf`;
@@ -281,7 +287,11 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         },
         
         // Include raw AI response for debugging
-        rawAIResponse: normalizedResult
+        rawAIResponse: normalizedResult,
+
+        // Add job context for PDF generation
+        jobDescription: jobDescription,
+        applicationData: applicationData
       };
 
       setOptimizationResults(optimizationResults);
@@ -342,6 +352,9 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
               </h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Document ID: {documentId.slice(0, 8)}...
+                {applicationData && (
+                  <span className="ml-2">• {applicationData.position} at {applicationData.company_name}</span>
+                )}
               </p>
             </div>
           </div>
@@ -401,8 +414,8 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
                   <p>API Key: {config.hasApiKey ? '✓ Configured' : '✗ Missing VITE_OPENAI_API_KEY'}</p>
                   <p className="text-xs mt-1">
                     {config.hasApiKey 
-                      ? 'Ready for resume extraction and AI enhancement analysis'
-                      : 'Both resume extraction and AI enhancement require API configuration'
+                      ? 'Ready for resume extraction, AI enhancement, and PDF generation'
+                      : 'All features require API configuration'
                     }
                   </p>
                 </div>
