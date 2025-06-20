@@ -3,6 +3,8 @@ import { X, Upload, FileText, Sparkles, Cloud, HardDrive, AlertCircle, CheckCirc
 import OptimizationResults from './OptimizationResults';
 import { ResumeExtractionService } from '../../services/resumeExtractionService';
 import { AIEnhancementService } from '../../services/aiEnhancementService';
+import { UserProfileData } from '../../services/profileService';
+import { useAuth } from '../../hooks/useAuth';
 
 interface AIEnhancementModalProps {
   jobDescription: string;
@@ -11,6 +13,7 @@ interface AIEnhancementModalProps {
     company_name: string;
     location?: string;
   };
+  detailedUserProfile?: UserProfileData | null;
   onSave: (resumeUrl: string, coverLetterUrl: string) => void;
   onClose: () => void;
 }
@@ -27,6 +30,7 @@ const generateUUID = (): string => {
 const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({ 
   jobDescription, 
   applicationData,
+  detailedUserProfile,
   onSave, 
   onClose 
 }) => {
@@ -39,6 +43,8 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
   const [optimizationResults, setOptimizationResults] = useState<any>(null);
   const [extractionProgress, setExtractionProgress] = useState<string>('');
   const [documentId] = useState<string>(generateUUID()); // Generate once and keep it
+
+  const { user } = useAuth();
 
   // Get configuration for display
   const config = ResumeExtractionService.getConfiguration();
@@ -291,7 +297,11 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
 
         // Add job context for PDF generation
         jobDescription: jobDescription,
-        applicationData: applicationData
+        applicationData: applicationData,
+
+        // Add detailed user profile and user for cover letter generation
+        detailedUserProfile: detailedUserProfile,
+        user: user
       };
 
       setOptimizationResults(optimizationResults);

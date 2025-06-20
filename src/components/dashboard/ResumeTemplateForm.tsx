@@ -68,7 +68,7 @@ const ResumeTemplateForm: React.FC<ResumeTemplateFormProps> = ({
     new Set(['personal', 'education', 'experience', 'skills', 'template'])
   );
   const [formatChoice, setFormatChoice] = useState('html');
-  const [selectedTemplate, setSelectedTemplate] = useState('Simple'); // Changed default to 'Simple'
+  const [selectedTemplate, setSelectedTemplate] = useState('Simple'); // Default to Simple
 
   // Mock templates data - Updated to match available templates
   const templates = [

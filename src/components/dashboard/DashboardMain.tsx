@@ -10,6 +10,7 @@ import ApplicationModal from './ApplicationModal';
 import { JobApplication } from '../../types/jobApplication';
 import { JobApplicationService } from '../../services/jobApplicationService';
 import { JobSearchService } from '../../services/jobSearchService';
+import { ProfileService, UserProfileData } from '../../services/profileService';
 import { useAuth } from '../../hooks/useAuth';
 
 interface ApplyJobsForm {
@@ -37,6 +38,7 @@ const Dashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [hoveredJob, setHoveredJob] = useState<string | null>(null);
   const [selectedJobDescription, setSelectedJobDescription] = useState<{title: string, company: string, description: string} | null>(null);
+  const [detailedUserProfile, setDetailedUserProfile] = useState<UserProfileData | null>(null);
   const [stats, setStats] = useState({
     total: 0,
     interviews: 0,
@@ -53,8 +55,22 @@ const Dashboard: React.FC = () => {
 
     if (user) {
       loadApplications();
+      loadDetailedUserProfile();
     }
   }, [user, authLoading, navigate]);
+
+  // Load detailed user profile
+  const loadDetailedUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const profile = await ProfileService.getUserProfile(user.uid);
+      setDetailedUserProfile(profile);
+    } catch (err: any) {
+      console.error('Error loading detailed user profile:', err);
+    }
+  };
+  
   // Update stats based on applications only (job listings added when user searches)
   useEffect(() => {
     const combined = [...applications, ...combinedListings];
@@ -320,6 +336,7 @@ const Dashboard: React.FC = () => {
       {showModal && (
         <ApplicationModal
           application={editingApplication}
+          detailedUserProfile={detailedUserProfile}
           onSave={handleSaveApplication}
           onClose={() => setShowModal(false)}
         />

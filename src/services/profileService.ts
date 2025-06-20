@@ -38,6 +38,7 @@ export interface UserProfileData {
   expectedSalaryFrom: string;
   expectedSalaryTo: string;
   salaryNotes: string;
+  linkedin_url: string; // Added LinkedIn URL field
   
   // Professional Information
   authorizedToWork: boolean;

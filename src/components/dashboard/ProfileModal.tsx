@@ -73,6 +73,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose }) => {
     expectedSalaryFrom: '',
     expectedSalaryTo: '',
     salaryNotes: '',
+    linkedin_url: '', // Added LinkedIn URL field
     
     // Professional Information
     authorizedToWork: true,
@@ -423,6 +424,14 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ onClose }) => {
                   value={formData.contactNumber}
                   onChange={(value) => updateField('contactNumber', value)}
                   placeholder="Enter phone number"
+                />
+              </FormField>
+              <FormField label="LinkedIn Profile URL">
+                <Input
+                  type="url"
+                  value={formData.linkedin_url}
+                  onChange={(value) => updateField('linkedin_url', value)}
+                  placeholder="https://linkedin.com/in/yourprofile"
                 />
               </FormField>
               <FormField label="Date of Birth">

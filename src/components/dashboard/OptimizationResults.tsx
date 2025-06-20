@@ -2,6 +2,8 @@ import React from 'react';
 import { X, Download, FileText, CheckCircle, AlertCircle, Target, TrendingUp, Award, Brain, Lightbulb, BarChart, Settings } from 'lucide-react';
 import ResumeTemplateForm from './ResumeTemplateForm';
 import { PDFGenerationService } from '../../services/pdfGenerationService';
+import { UserProfileData } from '../../services/profileService';
+import { User } from 'firebase/auth';
 
 interface OptimizationResultsProps {
   results: {
@@ -60,6 +62,9 @@ interface OptimizationResultsProps {
       company_name: string;
       location?: string;
     };
+    // User profile data for cover letter generation
+    detailedUserProfile?: UserProfileData | null;
+    user?: User | null;
   };
   onClose: () => void;
 }
@@ -152,8 +157,35 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
     setDownloadError('');
 
     try {
-      // Extract personal info from parsed resume
-      const personalInfo = PDFGenerationService.extractPersonalInfo(results.parsedResume);
+      // Construct personal info from detailed user profile first, then fallback to parsed resume
+      let personalInfo;
+      
+      if (results.detailedUserProfile && results.user) {
+        // Use detailed profile data with user email
+        const profile = results.detailedUserProfile;
+        const fullAddress = [
+          profile.streetAddress,
+          profile.city,
+          profile.state,
+          profile.zipCode
+        ].filter(Boolean).join(', ');
+
+        personalInfo = {
+          name: profile.fullName || 'Unknown',
+          email: results.user.email || 'unknown@email.com',
+          phone: profile.contactNumber || '',
+          address: fullAddress || '',
+          linkedin: profile.linkedin_url || ''
+        };
+      } else {
+        // Fallback to parsed resume data
+        personalInfo = PDFGenerationService.extractPersonalInfo(results.parsedResume);
+        
+        // Use user email if available
+        if (results.user?.email) {
+          personalInfo.email = results.user.email;
+        }
+      }
       
       const pdfBlob = await PDFGenerationService.generateCoverLetter(
         results.extractionMetadata.documentId,
@@ -298,6 +330,28 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                 <p className="text-gray-600 dark:text-gray-400 mb-6">
                   Generate and download your optimized resume and cover letter as professional PDFs.
                 </p>
+
+                {/* Profile Data Status */}
+                {results.detailedUserProfile && (
+                  <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <p className="text-sm text-green-700 dark:text-green-300">
+                      ✅ Using your detailed profile information for cover letter generation:
+                      <br />
+                      <strong>Name:</strong> {results.detailedUserProfile.fullName || 'Not set'}
+                      <br />
+                      <strong>Email:</strong> {results.user?.email || 'Not set'}
+                      <br />
+                      <strong>Phone:</strong> {results.detailedUserProfile.contactNumber || 'Not set'}
+                      <br />
+                      <strong>Address:</strong> {[
+                        results.detailedUserProfile.streetAddress,
+                        results.detailedUserProfile.city,
+                        results.detailedUserProfile.state,
+                        results.detailedUserProfile.zipCode
+                      ].filter(Boolean).join(', ') || 'Not set'}
+                    </p>
+                  </div>
+                )}
 
                 {/* Template Selection */}
                 <div className="mb-6">
@@ -827,6 +881,12 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Cover Letter Status:</span>
                       <p className="text-gray-900 dark:text-white">
                         {results.applicationData ? '✅ Ready' : '❌ Missing Job Details'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Profile Data Status:</span>
+                      <p className="text-gray-900 dark:text-white">
+                        {results.detailedUserProfile ? '✅ Using Profile Data' : '⚠️ Using Resume Data Only'}
                       </p>
                     </div>
                   </div>

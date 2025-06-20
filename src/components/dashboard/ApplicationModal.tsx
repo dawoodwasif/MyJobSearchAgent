@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Building, FileText, User, Link, Sparkles, MapPin } from 'lucide-react';
 import { JobApplication, ApplicationStatus } from '../../types/jobApplication';
+import { UserProfileData } from '../../services/profileService';
 import { useAuth } from '../../hooks/useAuth';
 import AIEnhancementModal from './AIEnhancementModal';
 
 interface ApplicationModalProps {
   application: JobApplication | null;
+  detailedUserProfile?: UserProfileData | null;
   onSave: (data: any) => void;
   onClose: () => void;
 }
 
-const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave, onClose }) => {
+const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, detailedUserProfile, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     company_name: '',
     position: '',
@@ -321,6 +323,7 @@ const ApplicationModal: React.FC<ApplicationModalProps> = ({ application, onSave
             company_name: formData.company_name,
             location: formData.location
           }}
+          detailedUserProfile={detailedUserProfile}
           onSave={handleAISave}
           onClose={() => setShowAIModal(false)}
         />
