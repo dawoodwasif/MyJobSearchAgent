@@ -47,7 +47,9 @@ const Dashboard: React.FC = () => {
   });
 
   const { user, userProfile, loading: authLoading } = useAuth();
-  const navigate = useNavigate();  useEffect(() => {
+  const navigate = useNavigate();
+
+  useEffect(() => {
     if (!authLoading && !user) {
       navigate('/login');
       return;
@@ -64,7 +66,9 @@ const Dashboard: React.FC = () => {
     if (!user) return;
 
     try {
+      console.log('Loading detailed user profile for user:', user.uid);
       const profile = await ProfileService.getUserProfile(user.uid);
+      console.log('Loaded profile data:', profile);
       setDetailedUserProfile(profile);
     } catch (err: any) {
       console.error('Error loading detailed user profile:', err);
@@ -86,6 +90,7 @@ const Dashboard: React.FC = () => {
       pending: appliedJobs
     });
   }, [applications, combinedListings]);
+
   const loadApplications = async () => {
     if (!user) return;
 
@@ -101,11 +106,13 @@ const Dashboard: React.FC = () => {
       setApplications(applicationsData);
       setStats(statsData);
     } catch (err: any) {
-      setError(err.message || 'Failed to load applications');      console.error('Error loading applications:', err);
+      setError(err.message || 'Failed to load applications');
+      console.error('Error loading applications:', err);
     } finally {
       setLoading(false);
     }
   };
+
   const handleAddApplication = () => {
     setEditingApplication(null);
     setShowModal(true);
@@ -139,6 +146,7 @@ const Dashboard: React.FC = () => {
       console.error('Error saving application:', err);
     }
   };
+
   const handleApplyJobs = async (applyJobsData: ApplyJobsForm) => {
     if (!user) return;
 
@@ -208,6 +216,7 @@ const Dashboard: React.FC = () => {
       setLoading(false);
     }
   };
+
   const handleDeleteApplication = async (applicationId: string) => {
     if (!confirm('Are you sure you want to delete this application?')) {
       return;
@@ -221,7 +230,9 @@ const Dashboard: React.FC = () => {
       setError(err.message || 'Failed to delete application');
       console.error('Error deleting application:', err);
     }
-  };  const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
+  };
+
+  const handleUpdateApplicationStatus = async (applicationId: string, newStatus: string) => {
     try {
       setError('');
       
@@ -229,7 +240,8 @@ const Dashboard: React.FC = () => {
       if (applicationId.startsWith('job-listing-')) {
         // Find the job listing in combinedListings
         const jobListing = combinedListings.find(job => job.id === applicationId);
-        if (jobListing && user && newStatus === 'applied') {          // Convert job listing to actual application
+        if (jobListing && user && newStatus === 'applied') {
+          // Convert job listing to actual application
           const applicationData = {
             company_name: jobListing.company_name,
             position: jobListing.position,
@@ -298,7 +310,8 @@ const Dashboard: React.FC = () => {
 
         <StatsCards stats={stats} />
 
-        <div className="space-y-8">          <ApplicationsTable
+        <div className="space-y-8">
+          <ApplicationsTable
             applications={[...applications, ...combinedListings]}
             searchTerm={searchTerm}
             statusFilter={statusFilter}

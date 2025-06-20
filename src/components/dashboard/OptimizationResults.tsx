@@ -157,26 +157,35 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
     setDownloadError('');
 
     try {
+      // Debug: Log the profile data we received
+      console.log('Profile data received:', results.detailedUserProfile);
+      console.log('User data received:', results.user);
+
       // Construct personal info from detailed user profile first, then fallback to parsed resume
       let personalInfo;
       
       if (results.detailedUserProfile && results.user) {
         // Use detailed profile data with user email
         const profile = results.detailedUserProfile;
-        const fullAddress = [
+        
+        // Build full address from profile components
+        const addressComponents = [
           profile.streetAddress,
           profile.city,
           profile.state,
           profile.zipCode
-        ].filter(Boolean).join(', ');
+        ].filter(Boolean);
+        const fullAddress = addressComponents.length > 0 ? addressComponents.join(', ') : '';
 
         personalInfo = {
           name: profile.fullName || 'Unknown',
           email: results.user.email || 'unknown@email.com',
           phone: profile.contactNumber || '',
-          address: fullAddress || '',
+          address: fullAddress,
           linkedin: profile.linkedin_url || ''
         };
+
+        console.log('Using profile data for cover letter:', personalInfo);
       } else {
         // Fallback to parsed resume data
         personalInfo = PDFGenerationService.extractPersonalInfo(results.parsedResume);
@@ -185,6 +194,8 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
         if (results.user?.email) {
           personalInfo.email = results.user.email;
         }
+
+        console.log('Using resume data for cover letter (fallback):', personalInfo);
       }
       
       const pdfBlob = await PDFGenerationService.generateCoverLetter(
@@ -331,27 +342,43 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                   Generate and download your optimized resume and cover letter as professional PDFs.
                 </p>
 
-                {/* Profile Data Status */}
-                {results.detailedUserProfile && (
-                  <div className="mb-6 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <p className="text-sm text-green-700 dark:text-green-300">
-                      ✅ Using your detailed profile information for cover letter generation:
-                      <br />
-                      <strong>Name:</strong> {results.detailedUserProfile.fullName || 'Not set'}
-                      <br />
-                      <strong>Email:</strong> {results.user?.email || 'Not set'}
-                      <br />
-                      <strong>Phone:</strong> {results.detailedUserProfile.contactNumber || 'Not set'}
-                      <br />
-                      <strong>Address:</strong> {[
-                        results.detailedUserProfile.streetAddress,
-                        results.detailedUserProfile.city,
-                        results.detailedUserProfile.state,
-                        results.detailedUserProfile.zipCode
-                      ].filter(Boolean).join(', ') || 'Not set'}
+                {/* Profile Data Status - Enhanced Debug Info */}
+                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                  <h4 className="font-medium text-gray-900 dark:text-white mb-3">📋 Cover Letter Data Source</h4>
+                  {results.detailedUserProfile ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        ✅ <strong>Using Profile Data:</strong>
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <strong>Name:</strong> {results.detailedUserProfile.fullName || '❌ Not set'}
+                        </div>
+                        <div>
+                          <strong>Email:</strong> {results.user?.email || '❌ Not set'}
+                        </div>
+                        <div>
+                          <strong>Phone:</strong> {results.detailedUserProfile.contactNumber || '❌ Not set'}
+                        </div>
+                        <div>
+                          <strong>LinkedIn:</strong> {results.detailedUserProfile.linkedin_url || '❌ Not set'}
+                        </div>
+                        <div className="md:col-span-2">
+                          <strong>Address:</strong> {[
+                            results.detailedUserProfile.streetAddress,
+                            results.detailedUserProfile.city,
+                            results.detailedUserProfile.state,
+                            results.detailedUserProfile.zipCode
+                          ].filter(Boolean).join(', ') || '❌ Not set'}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                      ⚠️ <strong>Using Resume Data Only</strong> - Complete your profile in "Update Profile" for better cover letters
                     </p>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Template Selection */}
                 <div className="mb-6">
