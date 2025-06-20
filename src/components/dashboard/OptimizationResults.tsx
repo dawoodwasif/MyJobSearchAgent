@@ -2,8 +2,9 @@ import React from 'react';
 import { X, Download, FileText, CheckCircle, AlertCircle, Target, TrendingUp, Award, Brain, Lightbulb, BarChart, Settings } from 'lucide-react';
 import ResumeTemplateForm from './ResumeTemplateForm';
 import { PDFGenerationService } from '../../services/pdfGenerationService';
-import { UserProfileData } from '../../services/profileService';
+import { UserProfileData, ProfileService } from '../../services/profileService';
 import { User } from 'firebase/auth';
+import { useAuth } from '../../hooks/useAuth';
 
 interface OptimizationResultsProps {
   results: {
@@ -76,6 +77,27 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
   const [downloadingCoverLetter, setDownloadingCoverLetter] = React.useState(false);
   const [downloadError, setDownloadError] = React.useState('');
   const [selectedTemplate, setSelectedTemplate] = React.useState('Simple');
+  const [currentUserProfile, setCurrentUserProfile] = React.useState<UserProfileData | null>(null);
+
+  const { user } = useAuth();
+
+  // Load fresh profile data when component mounts
+  React.useEffect(() => {
+    const loadFreshProfile = async () => {
+      if (user) {
+        try {
+          console.log('🔄 Loading fresh profile data for cover letter...');
+          const freshProfile = await ProfileService.getUserProfile(user.uid);
+          console.log('📋 Fresh profile loaded:', freshProfile);
+          setCurrentUserProfile(freshProfile);
+        } catch (error) {
+          console.error('❌ Error loading fresh profile:', error);
+        }
+      }
+    };
+
+    loadFreshProfile();
+  }, [user]);
 
   const getScoreBadge = (score: number) => {
     if (score >= 85) {
@@ -157,45 +179,39 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
     setDownloadError('');
 
     try {
-      // Debug: Log the profile data we received
-      console.log('Profile data received:', results.detailedUserProfile);
-      console.log('User data received:', results.user);
-
-      // Construct personal info from detailed user profile first, then fallback to parsed resume
+      // 🔧 CRITICAL FIX: Use fresh profile data directly from database
       let personalInfo;
       
-      if (results.detailedUserProfile && results.user) {
-        // Use detailed profile data with user email
-        const profile = results.detailedUserProfile;
+      if (currentUserProfile && user) {
+        console.log('✅ Using fresh profile data for cover letter generation');
         
         // Build full address from profile components
         const addressComponents = [
-          profile.streetAddress,
-          profile.city,
-          profile.state,
-          profile.zipCode
+          currentUserProfile.streetAddress,
+          currentUserProfile.city,
+          currentUserProfile.state,
+          currentUserProfile.zipCode
         ].filter(Boolean);
         const fullAddress = addressComponents.length > 0 ? addressComponents.join(', ') : '';
 
         personalInfo = {
-          name: profile.fullName || 'Unknown',
-          email: results.user.email || 'unknown@email.com',
-          phone: profile.contactNumber || '',
+          name: currentUserProfile.fullName || 'Unknown',
+          email: user.email || 'unknown@email.com',
+          phone: currentUserProfile.contactNumber || '',
           address: fullAddress,
-          linkedin: profile.linkedin_url || ''
+          linkedin: currentUserProfile.linkedin_url || ''
         };
 
-        console.log('Using profile data for cover letter:', personalInfo);
+        console.log('🎯 Final personal info for API:', personalInfo);
       } else {
+        console.log('⚠️ No profile data available, using resume fallback');
         // Fallback to parsed resume data
         personalInfo = PDFGenerationService.extractPersonalInfo(results.parsedResume);
         
         // Use user email if available
-        if (results.user?.email) {
-          personalInfo.email = results.user.email;
+        if (user?.email) {
+          personalInfo.email = user.email;
         }
-
-        console.log('Using resume data for cover letter (fallback):', personalInfo);
       }
       
       const pdfBlob = await PDFGenerationService.generateCoverLetter(
@@ -345,30 +361,30 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                 {/* Profile Data Status - Enhanced Debug Info */}
                 <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
                   <h4 className="font-medium text-gray-900 dark:text-white mb-3">📋 Cover Letter Data Source</h4>
-                  {results.detailedUserProfile ? (
+                  {currentUserProfile ? (
                     <div className="space-y-2">
                       <p className="text-sm text-green-700 dark:text-green-300">
-                        ✅ <strong>Using Profile Data:</strong>
+                        ✅ <strong>Using Fresh Profile Data:</strong>
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                         <div>
-                          <strong>Name:</strong> {results.detailedUserProfile.fullName || '❌ Not set'}
+                          <strong>Name:</strong> {currentUserProfile.fullName || '❌ Not set'}
                         </div>
                         <div>
-                          <strong>Email:</strong> {results.user?.email || '❌ Not set'}
+                          <strong>Email:</strong> {user?.email || '❌ Not set'}
                         </div>
                         <div>
-                          <strong>Phone:</strong> {results.detailedUserProfile.contactNumber || '❌ Not set'}
+                          <strong>Phone:</strong> {currentUserProfile.contactNumber || '❌ Not set'}
                         </div>
                         <div>
-                          <strong>LinkedIn:</strong> {results.detailedUserProfile.linkedin_url || '❌ Not set'}
+                          <strong>LinkedIn:</strong> {currentUserProfile.linkedin_url || '❌ Not set'}
                         </div>
                         <div className="md:col-span-2">
                           <strong>Address:</strong> {[
-                            results.detailedUserProfile.streetAddress,
-                            results.detailedUserProfile.city,
-                            results.detailedUserProfile.state,
-                            results.detailedUserProfile.zipCode
+                            currentUserProfile.streetAddress,
+                            currentUserProfile.city,
+                            currentUserProfile.state,
+                            currentUserProfile.zipCode
                           ].filter(Boolean).join(', ') || '❌ Not set'}
                         </div>
                       </div>
@@ -848,6 +864,12 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                           {results.extractionMetadata.apiBaseUrl}
                         </p>
                       </div>
+                      <div>
+                        <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Profile Data Status:</span>
+                        <p className="text-gray-900 dark:text-white">
+                          {currentUserProfile ? '✅ Using Profile Data' : '⚠️ Using Resume Data Only'}
+                        </p>
+                      </div>
                       {results.extractionMetadata.sectionsAnalyzed && (
                         <div>
                           <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Sections Analyzed:</span>
@@ -908,12 +930,6 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
                       <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Cover Letter Status:</span>
                       <p className="text-gray-900 dark:text-white">
                         {results.applicationData ? '✅ Ready' : '❌ Missing Job Details'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Profile Data Status:</span>
-                      <p className="text-gray-900 dark:text-white">
-                        {results.detailedUserProfile ? '✅ Using Profile Data' : '⚠️ Using Resume Data Only'}
                       </p>
                     </div>
                   </div>
