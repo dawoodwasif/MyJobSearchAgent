@@ -210,6 +210,11 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
       const enhancedResumeUrl = `https://example.com/ai-enhanced-resume-${documentId}.pdf`;
       const enhancedCoverLetterUrl = `https://example.com/ai-enhanced-cover-letter-${documentId}.pdf`;
       
+      // Debug: Log the profile data we're about to include
+      console.log('🔍 Profile data being included in optimization results:');
+      console.log('detailedUserProfile:', detailedUserProfile);
+      console.log('user:', user);
+      
       // Combine real AI analysis with our UI structure
       const optimizationResults = {
         matchScore: normalizedResult.analysis.match_score,
@@ -299,10 +304,25 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
         jobDescription: jobDescription,
         applicationData: applicationData,
 
-        // Add detailed user profile and user for cover letter generation
+        // 🔧 CRITICAL FIX: Add detailed user profile and user for cover letter generation
         detailedUserProfile: detailedUserProfile,
         user: user
       };
+
+      // Debug: Log what we're setting as optimization results
+      console.log('✅ Setting optimization results with profile data:');
+      console.log('- detailedUserProfile included:', !!optimizationResults.detailedUserProfile);
+      console.log('- user included:', !!optimizationResults.user);
+      if (optimizationResults.detailedUserProfile) {
+        console.log('- Profile name:', optimizationResults.detailedUserProfile.fullName);
+        console.log('- Profile phone:', optimizationResults.detailedUserProfile.contactNumber);
+        console.log('- Profile address components:', {
+          street: optimizationResults.detailedUserProfile.streetAddress,
+          city: optimizationResults.detailedUserProfile.city,
+          state: optimizationResults.detailedUserProfile.state,
+          zip: optimizationResults.detailedUserProfile.zipCode
+        });
+      }
 
       setOptimizationResults(optimizationResults);
       setShowResults(true);
@@ -391,6 +411,32 @@ const AIEnhancementModal: React.FC<AIEnhancementModalProps> = ({
             <div className="bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 p-3 rounded-lg text-sm flex items-center gap-2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
               {extractionProgress}
+            </div>
+          )}
+
+          {/* Profile Data Debug Info */}
+          {detailedUserProfile && (
+            <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle className="text-green-600 dark:text-green-400 mt-0.5" size={16} />
+                <div>
+                  <h4 className="text-sm font-medium text-green-800 dark:text-green-200">
+                    ✅ Profile Data Loaded for Cover Letter
+                  </h4>
+                  <div className="text-sm mt-1 text-green-700 dark:text-green-300">
+                    <p><strong>Name:</strong> {detailedUserProfile.fullName || '❌ Not set'}</p>
+                    <p><strong>Phone:</strong> {detailedUserProfile.contactNumber || '❌ Not set'}</p>
+                    <p><strong>Email:</strong> {user?.email || '❌ Not set'}</p>
+                    <p><strong>Address:</strong> {[
+                      detailedUserProfile.streetAddress,
+                      detailedUserProfile.city,
+                      detailedUserProfile.state,
+                      detailedUserProfile.zipCode
+                    ].filter(Boolean).join(', ') || '❌ Not set'}</p>
+                    <p><strong>LinkedIn:</strong> {detailedUserProfile.linkedin_url || '❌ Not set'}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
