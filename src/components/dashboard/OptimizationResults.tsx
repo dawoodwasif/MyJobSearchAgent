@@ -70,7 +70,7 @@ const OptimizationResults: React.FC<OptimizationResultsProps> = ({ results, onCl
   const [downloadingResume, setDownloadingResume] = React.useState(false);
   const [downloadingCoverLetter, setDownloadingCoverLetter] = React.useState(false);
   const [downloadError, setDownloadError] = React.useState('');
-  const [selectedTemplate, setSelectedTemplate] = React.useState('Modern');
+  const [selectedTemplate, setSelectedTemplate] = React.useState('Simple');
 
   const getScoreBadge = (score: number) => {
     if (score >= 85) {
