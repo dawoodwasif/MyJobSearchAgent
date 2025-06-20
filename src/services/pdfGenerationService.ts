@@ -195,6 +195,15 @@ export class PDFGenerationService {
         throw new Error('Personal name and email are required for cover letter generation');
       }
 
+      // Debug: Log the personal info being sent to API
+      console.log('🔍 Personal info being sent to cover letter API:');
+      console.log('personalInfo object:', personalInfo);
+      console.log('- name:', personalInfo.name);
+      console.log('- email:', personalInfo.email);
+      console.log('- phone:', personalInfo.phone);
+      console.log('- address:', personalInfo.address);
+      console.log('- linkedin:', personalInfo.linkedin);
+
       // Build the request data according to the new API format
       const requestData: GenerateCoverLetterRequest = {
         file_id: fileId,
@@ -217,6 +226,10 @@ export class PDFGenerationService {
         model_type: options.modelType || this.DEFAULT_MODEL_TYPE,
         model: options.model || this.DEFAULT_MODEL
       };
+
+      // Debug: Log the complete request data
+      console.log('📤 Complete request data being sent to API:');
+      console.log('Request data:', JSON.stringify(requestData, null, 2));
 
       console.log('Making generate cover letter request to:', `${this.API_BASE_URL}/api/generate-cover-letter`);
       console.log('Position:', position);
@@ -264,11 +277,11 @@ export class PDFGenerationService {
         throw new Error('Received empty PDF file');
       }
 
-      console.log('Cover letter generation successful, PDF size:', pdfBlob.size, 'bytes');
+      console.log('✅ Cover letter generation successful, PDF size:', pdfBlob.size, 'bytes');
       return pdfBlob;
 
     } catch (error: any) {
-      console.error('Error generating cover letter:', error);
+      console.error('❌ Error generating cover letter:', error);
       
       if (error.name === 'AbortError') {
         throw new Error('PDF generation timed out. The process is taking longer than expected. Please try again.');
@@ -326,13 +339,16 @@ export class PDFGenerationService {
   // Extract personal info from parsed resume data - Updated to include address and linkedin
   static extractPersonalInfo(parsedResume: any): PersonalInfo {
     const personal = parsedResume?.personal || {};
-    return {
+    const extractedInfo = {
       name: personal.name || 'Unknown',
       email: personal.email || 'unknown@email.com',
       phone: personal.phone || '',
       address: personal.location || '', // Use location as address
       linkedin: personal.linkedin || ''
     };
+
+    console.log('📄 Extracted personal info from resume:', extractedInfo);
+    return extractedInfo;
   }
 
   // Extract job details from application data
@@ -397,5 +413,28 @@ export class PDFGenerationService {
       hiring_manager: hiringManager,
       department: department
     };
+  }
+
+  // NEW: Helper method to build personal info from detailed profile
+  static buildPersonalInfoFromProfile(detailedProfile: any, userEmail: string): PersonalInfo {
+    // Build full address from profile components
+    const addressComponents = [
+      detailedProfile.streetAddress,
+      detailedProfile.city,
+      detailedProfile.state,
+      detailedProfile.zipCode
+    ].filter(Boolean);
+    const fullAddress = addressComponents.length > 0 ? addressComponents.join(', ') : '';
+
+    const personalInfo = {
+      name: detailedProfile.fullName || 'Unknown',
+      email: userEmail || 'unknown@email.com',
+      phone: detailedProfile.contactNumber || '',
+      address: fullAddress,
+      linkedin: detailedProfile.linkedin_url || ''
+    };
+
+    console.log('👤 Built personal info from profile:', personalInfo);
+    return personalInfo;
   }
 }

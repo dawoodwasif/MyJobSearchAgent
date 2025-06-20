@@ -95,14 +95,27 @@ export class ProfileService {
   // Save user profile
   static async saveUserProfile(userId: string, profileData: UserProfileData): Promise<void> {
     try {
+      console.log('💾 Saving user profile for user:', userId);
+      console.log('📝 Profile data being saved:', {
+        fullName: profileData.fullName,
+        contactNumber: profileData.contactNumber,
+        streetAddress: profileData.streetAddress,
+        city: profileData.city,
+        state: profileData.state,
+        zipCode: profileData.zipCode,
+        linkedin_url: profileData.linkedin_url
+      });
+
       const docRef = doc(db, COLLECTION_NAME, userId);
       await setDoc(docRef, {
         ...profileData,
         updated_at: serverTimestamp(),
         created_at: serverTimestamp()
       }, { merge: true });
+
+      console.log('✅ Profile saved successfully');
     } catch (error) {
-      console.error('Error saving user profile:', error);
+      console.error('❌ Error saving user profile:', error);
       throw new Error('Failed to save profile');
     }
   }
@@ -110,21 +123,36 @@ export class ProfileService {
   // Get user profile
   static async getUserProfile(userId: string): Promise<UserProfileData | null> {
     try {
+      console.log('📖 Loading user profile for user:', userId);
+      
       const docRef = doc(db, COLLECTION_NAME, userId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         const data = docSnap.data();
-        return {
+        const profile = {
           ...data,
           created_at: data.created_at?.toDate?.()?.toISOString() || data.created_at,
           updated_at: data.updated_at?.toDate?.()?.toISOString() || data.updated_at
         } as UserProfileData;
+
+        console.log('✅ Profile loaded successfully:', {
+          fullName: profile.fullName,
+          contactNumber: profile.contactNumber,
+          streetAddress: profile.streetAddress,
+          city: profile.city,
+          state: profile.state,
+          zipCode: profile.zipCode,
+          linkedin_url: profile.linkedin_url
+        });
+
+        return profile;
       }
       
+      console.log('⚠️ No profile found for user');
       return null;
     } catch (error) {
-      console.error('Error getting user profile:', error);
+      console.error('❌ Error getting user profile:', error);
       throw new Error('Failed to get profile');
     }
   }
