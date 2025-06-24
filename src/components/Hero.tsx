@@ -30,30 +30,30 @@ const Hero: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="max-w-3xl mx-auto md:mx-0">
           <span className="inline-block px-4 py-1.5 bg-blue-600/10 rounded-full text-blue-400 font-medium mb-6 backdrop-blur-sm animate-fadeIn">
-            Next Generation AI Solutions
+            AI-Powered Career Success
           </span>
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight animate-slideUp">
-            Transforming Business <br />
+            Land Your Dream Job <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-              With Intelligent AI
+              With AI Intelligence
             </span>
           </h1>
           <p className="text-xl text-gray-300 mb-8 leading-relaxed animate-slideUp animation-delay-100">
-            We help businesses leverage the power of artificial intelligence to optimize operations, enhance customer experiences, and drive innovation across industries.
+            Transform your job search with our intelligent platform. Get personalized resume optimization, practice with AI-powered mock interviews, and track applications seamlessly to accelerate your career success.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 animate-slideUp animation-delay-200">
             <a 
               href="#contact" 
               className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-lg font-medium text-center flex items-center justify-center gap-2 group transition-all hover:-translate-y-1 hover:shadow-lg"
             >
-              Start Your AI Journey
+              Start Your Career Journey
               <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
             </a>
             <a 
               href="#services" 
               className="bg-white/10 backdrop-blur-sm text-white hover:bg-white/20 px-8 py-4 rounded-lg font-medium text-center transition-all hover:-translate-y-1"
             >
-              Explore Our Services
+              Explore Our Platform
             </a>
           </div>
         </div>

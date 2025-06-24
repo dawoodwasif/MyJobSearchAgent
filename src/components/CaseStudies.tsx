@@ -6,9 +6,10 @@ interface CaseStudyProps {
   category: string;
   title: string;
   description: string;
+  results: string;
 }
 
-const CaseStudy: React.FC<CaseStudyProps> = ({ image, category, title, description }) => {
+const CaseStudy: React.FC<CaseStudyProps> = ({ image, category, title, description, results }) => {
   return (
     <div className="group relative overflow-hidden rounded-xl bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-all">
       <div className="h-64 overflow-hidden">
@@ -23,12 +24,15 @@ const CaseStudy: React.FC<CaseStudyProps> = ({ image, category, title, descripti
           {category}
         </span>
         <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">{title}</h3>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">{description}</p>
+        <p className="text-gray-600 dark:text-gray-300 mb-3">{description}</p>
+        <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg mb-4">
+          <p className="text-green-700 dark:text-green-400 font-medium text-sm">{results}</p>
+        </div>
         <a 
           href="#" 
           className="inline-flex items-center text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300 group/link"
         >
-          Read Case Study
+          Read Success Story
           <ArrowRight size={16} className="ml-2 transition-transform group-hover/link:translate-x-1" />
         </a>
       </div>
@@ -39,22 +43,25 @@ const CaseStudy: React.FC<CaseStudyProps> = ({ image, category, title, descripti
 const CaseStudies: React.FC = () => {
   const caseStudies = [
     {
-      image: "https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      category: "Finance",
-      title: "AI-Powered Fraud Detection System",
-      description: "How we helped a leading financial institution reduce fraud by 87% using our advanced machine learning algorithms."
+      image: "https://images.pexels.com/photos/3184306/pexels-photo-3184306.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+      category: "Career Transition",
+      title: "From Marketing to Tech: Sarah's Journey",
+      description: "Sarah used our AI-powered resume optimization and mock interview features to successfully transition from marketing to a software product manager role at a Fortune 500 company.",
+      results: "Landed dream job in 6 weeks with 40% salary increase"
     },
     {
-      image: "https://images.pexels.com/photos/8985454/pexels-photo-8985454.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      category: "Healthcare",
-      title: "Predictive Analytics for Patient Care",
-      description: "Implementing AI to predict patient outcomes and optimize treatment plans, resulting in 32% better recovery rates."
+      image: "https://images.pexels.com/photos/3184338/pexels-photo-3184338.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+      category: "Recent Graduate",
+      title: "Fresh Graduate Lands Senior Role",
+      description: "Michael leveraged our interview preparation and application tracking system to secure a senior developer position straight out of college, beating 200+ applicants.",
+      results: "Secured senior role with 85% interview success rate"
     },
     {
-      image: "https://images.pexels.com/photos/5483077/pexels-photo-5483077.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
-      category: "Retail",
-      title: "Intelligent Inventory Management",
-      description: "How our AI solution helped a retail chain reduce inventory costs by 23% while improving product availability."
+      image: "https://images.pexels.com/photos/3184357/pexels-photo-3184357.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2",
+      category: "Executive Search",
+      title: "C-Level Executive Career Acceleration",
+      description: "Jennifer used our executive-level resume templates and strategic interview coaching to land a Chief Technology Officer position at a rapidly growing startup.",
+      results: "Achieved C-level promotion in 3 months"
     }
   ];
 
@@ -63,19 +70,19 @@ const CaseStudies: React.FC = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12">
           <div className="max-w-2xl mb-6 md:mb-0">
-            <span className="text-blue-600 dark:text-blue-400 font-medium">Case Studies</span>
+            <span className="text-blue-600 dark:text-blue-400 font-medium">Success Stories</span>
             <h2 className="text-3xl md:text-4xl font-bold mt-2 mb-4 text-gray-900 dark:text-white">
-              Our Success Stories
+              Real People, Real Results
             </h2>
             <p className="text-gray-600 dark:text-gray-300 text-lg">
-              See how our AI solutions have transformed businesses across different industries.
+              Discover how our AI-powered job search platform has helped professionals across industries land their dream careers and accelerate their success.
             </p>
           </div>
           <a 
             href="#" 
             className="inline-flex items-center text-blue-600 dark:text-blue-400 font-medium hover:text-blue-700 dark:hover:text-blue-300"
           >
-            View All Case Studies
+            View All Success Stories
             <ArrowRight size={16} className="ml-2" />
           </a>
         </div>
@@ -88,6 +95,7 @@ const CaseStudies: React.FC = () => {
               category={study.category}
               title={study.title}
               description={study.description}
+              results={study.results}
             />
           ))}
         </div>
